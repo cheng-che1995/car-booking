@@ -15,7 +15,7 @@ type jwtCustomClaims struct {
 }
 
 type LoginResponse struct {
-	Token string `json:"token"`
+	Token string `json:"keyyy"`
 }
 
 // type CustomFunc func(echo.Context) error
