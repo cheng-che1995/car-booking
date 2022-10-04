@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -19,10 +20,17 @@ type LoginResponse struct {
 }
 
 type AppointmentsResponse struct {
-	Appointments []time.Time `json:"appointments"`
+	Appointments []Appointment `json:"appointments"`
 }
 
 var appointments []time.Time
+
+var appoint2 []Appointment
+
+type Appointment struct {
+	Username string
+	Date     time.Time
+}
 
 // type CustomFunc func(echo.Context) error
 var users map[string]string = map[string]string{
@@ -62,17 +70,22 @@ func login(c echo.Context) error {
 }
 
 func createAppointments(c echo.Context) error {
+	token := c.Get("token").(*jwt.Token)
+	claims := token.Claims.(*jwtCustomClaims)
+	username := claims.Name
+
 	selectedDate := c.FormValue("selectedDate")
 	t, err := time.Parse("2006-01-02", selectedDate)
 	if err != nil {
 		return err
 	}
-	appointments = append(appointments, t)
-	return c.String(http.StatusOK, "預約成功！您的預約日期為："+t.Format("2006-01-02"))
+	// appointments = append(appointments, t)
+	appoint2 = append(appoint2, Appointment{username, t})
+	return c.String(http.StatusOK, fmt.Sprintf("預約成功！%s，您的預約日期為： %s", username, t.Format("2006-01-02")))
 }
 
 func searchAppointments(c echo.Context) error {
-	return c.JSON(http.StatusOK, AppointmentsResponse{Appointments: appointments})
+	return c.JSON(http.StatusOK, AppointmentsResponse{Appointments: appoint2})
 }
 
 func cancelAppointments(c echo.Context) error {
@@ -108,6 +121,7 @@ func main() {
 		// Claims:     &jwtCustomClaims{},
 		Claims:     &jwtCustomClaims{},
 		SigningKey: []byte("secret"),
+		ContextKey: "token",
 		ErrorHandlerWithContext: func(err error, c echo.Context) error {
 			return c.String(http.StatusUnauthorized, err.Error())
 		},
