@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"sort"
 	"time"
 
 	"github.com/golang-jwt/jwt"
@@ -23,8 +24,6 @@ type AppointmentsResponse struct {
 	Appointments []Appointment `json:"appointments"`
 }
 
-// var appointments []time.Time
-
 var appoint2 []Appointment
 
 type Appointment struct {
@@ -34,12 +33,16 @@ type Appointment struct {
 
 // type CustomFunc func(echo.Context) error
 var users map[string]string = map[string]string{
-	"tony":   "tonytsai",
+	"tony":   "4321",
 	"wilson": "1234",
 }
 
-func handle(c echo.Context) error {
-	return c.String(http.StatusOK, "Hello World!")
+func showUsers(c echo.Context) error {
+	var account []string
+	for u := range users {
+		account = append(account, u)
+	}
+	return c.JSON(http.StatusOK, account)
 }
 
 func login(c echo.Context) error {
@@ -87,22 +90,39 @@ func createAppointments(c echo.Context) error {
 	}
 
 	appoint2 = append(appoint2, Appointment{username, t})
+
+	sort.Slice(appoint2, func(i, j int) bool {
+		return appoint2[i].Date.Before(appoint2[j].Date)
+	})
+
 	return c.String(http.StatusOK, fmt.Sprintf("預約成功！%s，您的預約日期為： %s", username, t.Format("2006-01-02")))
 }
 
 func searchAppointments(c echo.Context) error {
-	var fitlerByUsername []Appointment
-	filterSelectUsername := c.FormValue("filterSelectUsername")
-	if filterSelectUsername == "" {
-		fitlerByUsername = appoint2
+	var filteredAppointments []Appointment
+	filterByUsername := c.FormValue("filterByUsername")
+	// t1 := c.FormValue("filterByDateStart")
+	// t2 := c.FormValue("filterByDateEnd")
+
+	// if t1,t2 == ""{
+	if filterByUsername == "" {
+		filteredAppointments = appoint2
 	} else {
 		for _, a := range appoint2 {
-			if a.Username == filterSelectUsername {
-				fitlerByUsername = append(fitlerByUsername, a)
+			if a.Username == filterByUsername {
+				filteredAppointments = append(filteredAppointments, a)
 			}
 		}
 	}
-	return c.JSON(http.StatusOK, AppointmentsResponse{Appointments: fitlerByUsername})
+	// }else{
+	// 	for i,a := range appoint2{
+	// 		if t1 < {
+
+	// 		}
+	// 	}
+	// }
+
+	return c.JSON(http.StatusOK, AppointmentsResponse{Appointments: filteredAppointments})
 }
 
 func cancelAppointments(c echo.Context) error {
@@ -142,6 +162,7 @@ func main() {
 	// var e *echo.Echo // = echo.New()
 	e := echo.New()
 	e.POST("/login", login)
+	e.GET("/users", showUsers)
 	b := e.Group("/booking")
 	b.Use(middleware.JWTWithConfig(middleware.JWTConfig{
 		// Claims:     &jwtCustomClaims{},
@@ -152,11 +173,11 @@ func main() {
 			return c.String(http.StatusUnauthorized, err.Error())
 		},
 	}))
-	b.GET("/dog", handle)
 	b.POST("/appointments", createAppointments)
 	b.GET("/appointments", searchAppointments)
 	b.DELETE("/appointments", cancelAppointments)
 	e.Use(middleware.Logger())
+	e.Use(middleware.CORS())
 	e.Logger.Fatal(e.Start(":1323"))
 
 }
