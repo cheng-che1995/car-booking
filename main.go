@@ -79,6 +79,13 @@ func createAppointments(c echo.Context) error {
 	if err != nil {
 		return err
 	}
+
+	for _, a := range appoint2 {
+		if a.Date == t {
+			return c.String(http.StatusOK, fmt.Sprintf("%s，此日期已被預訂，請您重新選擇其他日期！", username))
+		}
+	}
+
 	appoint2 = append(appoint2, Appointment{username, t})
 	return c.String(http.StatusOK, fmt.Sprintf("預約成功！%s，您的預約日期為： %s", username, t.Format("2006-01-02")))
 }
@@ -95,7 +102,6 @@ func searchAppointments(c echo.Context) error {
 			}
 		}
 	}
-
 	return c.JSON(http.StatusOK, AppointmentsResponse{Appointments: fitlerByUsername})
 }
 
