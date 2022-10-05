@@ -23,7 +23,7 @@ type AppointmentsResponse struct {
 	Appointments []Appointment `json:"appointments"`
 }
 
-var appointments []time.Time
+// var appointments []time.Time
 
 var appoint2 []Appointment
 
@@ -79,35 +79,55 @@ func createAppointments(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	// appointments = append(appointments, t)
 	appoint2 = append(appoint2, Appointment{username, t})
 	return c.String(http.StatusOK, fmt.Sprintf("預約成功！%s，您的預約日期為： %s", username, t.Format("2006-01-02")))
 }
 
 func searchAppointments(c echo.Context) error {
-	return c.JSON(http.StatusOK, AppointmentsResponse{Appointments: appoint2})
+	var fitlerByUsername []Appointment
+	filterSelectUsername := c.FormValue("filterSelectUsername")
+	if filterSelectUsername == "" {
+		fitlerByUsername = appoint2
+	} else {
+		for _, a := range appoint2 {
+			if a.Username == filterSelectUsername {
+				fitlerByUsername = append(fitlerByUsername, a)
+			}
+		}
+	}
+
+	return c.JSON(http.StatusOK, AppointmentsResponse{Appointments: fitlerByUsername})
 }
 
 func cancelAppointments(c echo.Context) error {
+	token := c.Get("token").(*jwt.Token)
+	claims := token.Claims.(*jwtCustomClaims)
+	username := claims.Name
+
 	selectedDate := c.FormValue("selectedDate")
 	t, err := time.Parse("2006-01-02", selectedDate)
 	if err != nil {
 		return err
 	}
+
 	var found bool
-	for i := range appointments {
-		if t == appointments[i] {
-			found = true
-			for j := range appointments[i : len(appointments)-1] {
-				appointments[i+j] = appointments[i+j+1]
+
+	for i := range appoint2 {
+		if t == appoint2[i].Date {
+			if appoint2[i].Username != username {
+				return c.String(http.StatusOK, fmt.Sprintf("此%s日期不屬於%s您的預約！", t.Format("2006-01-02"), username))
 			}
-			appointments = appointments[:len(appointments)-1]
+			found = true
+			for j := range appoint2[i : len(appoint2)-1] {
+				appoint2[i+j].Date = appoint2[i+j+1].Date
+			}
+			appoint2 = appoint2[:len(appoint2)-1]
 			break
 		}
 
 	}
 	if found {
-		return c.String(http.StatusOK, "取消成功！您已將"+t.Format("2006-01-02")+"預約取消！")
+		return c.String(http.StatusOK, fmt.Sprintf("取消成功！%s，您已將 %s預約取消！", username, t.Format("2006-01-02")))
 	}
 	return c.String(http.StatusOK, "查無此預約！")
 }
