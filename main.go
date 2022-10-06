@@ -22,7 +22,15 @@ type LoginResponse struct {
 
 type AppointmentsResponse struct {
 	Appointments []Appointment `json:"appointments"`
+	Status       string        `json:"status"`
+	Message      string        `json:"message"`
 }
+
+const (
+	SuccessResponse  string = "success"
+	ClashResponse    string = "clash"
+	NotFoundResponse string = "notFound"
+)
 
 var appoint2 []Appointment
 
@@ -76,16 +84,17 @@ func createAppointments(c echo.Context) error {
 	token := c.Get("token").(*jwt.Token)
 	claims := token.Claims.(*jwtCustomClaims)
 	username := claims.Name
-
 	selectedDate := c.FormValue("selectedDate")
 	t, err := time.Parse("2006-01-02", selectedDate)
 	if err != nil {
 		return err
 	}
+	errMessage := fmt.Sprintf("%s，此日期已被預訂，請您重新選擇其他日期！", username)
+	successMessage := fmt.Sprintf("預約成功！%s，您的預約日期為： %s", username, t.Format("2006-01-02"))
 
 	for _, a := range appoint2 {
 		if a.Date == t {
-			return c.String(http.StatusOK, fmt.Sprintf("%s，此日期已被預訂，請您重新選擇其他日期！", username))
+			return c.JSON(http.StatusOK, AppointmentsResponse{Status: ClashResponse, Message: errMessage})
 		}
 	}
 
@@ -95,7 +104,7 @@ func createAppointments(c echo.Context) error {
 		return appoint2[i].Date.Before(appoint2[j].Date)
 	})
 
-	return c.String(http.StatusOK, fmt.Sprintf("預約成功！%s，您的預約日期為： %s", username, t.Format("2006-01-02")))
+	return c.JSON(http.StatusOK, AppointmentsResponse{Status: SuccessResponse, Message: successMessage})
 }
 
 func searchAppointments(c echo.Context) error {
@@ -146,7 +155,7 @@ func searchAppointments(c echo.Context) error {
 		}
 		filteredAppointments = append(filteredAppointments, a)
 	}
-	return c.JSON(http.StatusOK, AppointmentsResponse{filteredAppointments})
+	return c.JSON(http.StatusOK, AppointmentsResponse{Status: SuccessResponse, Appointments: filteredAppointments})
 }
 
 func cancelAppointments(c echo.Context) error {
@@ -159,13 +168,16 @@ func cancelAppointments(c echo.Context) error {
 	if err != nil {
 		return err
 	}
+	successMessage := fmt.Sprintf("取消成功！%s，您已將 %s預約取消！", username, t.Format("2006-01-02"))
+	errMessage := fmt.Sprintf("此%s日期不屬於%s您的預約！", t.Format("2006-01-02"), username)
+	notFoundMessage := fmt.Sprintf("查無此預約！%s請您重新選擇日期！", username)
 
 	var found bool
 
 	for i := range appoint2 {
 		if t == appoint2[i].Date {
 			if appoint2[i].Username != username {
-				return c.String(http.StatusOK, fmt.Sprintf("此%s日期不屬於%s您的預約！", t.Format("2006-01-02"), username))
+				return c.JSON(http.StatusOK, AppointmentsResponse{Status: ClashResponse, Message: errMessage})
 			}
 			found = true
 			for j := range appoint2[i : len(appoint2)-1] {
@@ -177,9 +189,9 @@ func cancelAppointments(c echo.Context) error {
 
 	}
 	if found {
-		return c.String(http.StatusOK, fmt.Sprintf("取消成功！%s，您已將 %s預約取消！", username, t.Format("2006-01-02")))
+		return c.JSON(http.StatusOK, AppointmentsResponse{Status: SuccessResponse, Message: successMessage})
 	}
-	return c.String(http.StatusOK, "查無此預約！")
+	return c.JSON(http.StatusOK, AppointmentsResponse{Status: NotFoundResponse, Message: notFoundMessage})
 }
 
 func main() {
