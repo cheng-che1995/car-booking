@@ -101,28 +101,52 @@ func createAppointments(c echo.Context) error {
 func searchAppointments(c echo.Context) error {
 	var filteredAppointments []Appointment
 	filterByUsername := c.FormValue("filterByUsername")
-	// t1 := c.FormValue("filterByDateStart")
-	// t2 := c.FormValue("filterByDateEnd")
+	filterByDateStart := c.FormValue("filterByDateStart")
+	filterByDateEnd := c.FormValue("filterByDateEnd")
+	startDate, _ := time.Parse("2006-01-02", filterByDateStart)
+	endDate, _ := time.Parse("2006-01-02", filterByDateEnd)
 
-	// if t1,t2 == ""{
-	if filterByUsername == "" {
-		filteredAppointments = appoint2
-	} else {
-		for _, a := range appoint2 {
-			if a.Username == filterByUsername {
-				filteredAppointments = append(filteredAppointments, a)
-			}
-		}
-	}
-	// }else{
-	// 	for i,a := range appoint2{
-	// 		if t1 < {
+	//****approach1:
+	// for _, a := range appoint2 {
+	// 	validUsername := true
+	// 	validStartDate := true
+	// 	validEndDate := true
 
+	// 	if filterByUsername != "" {
+	// 		if a.Username != filterByUsername {
+	// 			validUsername = false
 	// 		}
+	// 	}
+	// 	if filterByDateStart != "" {
+	// 		if a.Date.Before(startDate){
+	// 			validStartDate = false
+	// 		}
+	// 	}
+	// 	if filterByDateEnd != ""{
+	// 		if a.Date.After(endDate){
+	// 			validEndDate = false
+	// 		}
+	// 	}
+
+	// 	if validUsername && validStartDate && validEndDate {
+	// 		filteredAppointments = append(filteredAppointments, a)
 	// 	}
 	// }
 
-	return c.JSON(http.StatusOK, AppointmentsResponse{Appointments: filteredAppointments})
+	//****approach2:
+	for _, a := range appoint2 {
+		if filterByUsername != "" && a.Username != filterByUsername {
+			continue
+		}
+		if filterByDateStart != "" && a.Date.Before(startDate) {
+			continue
+		}
+		if filterByDateEnd != "" && a.Date.After(endDate) {
+			continue
+		}
+		filteredAppointments = append(filteredAppointments, a)
+	}
+	return c.JSON(http.StatusOK, AppointmentsResponse{filteredAppointments})
 }
 
 func cancelAppointments(c echo.Context) error {
