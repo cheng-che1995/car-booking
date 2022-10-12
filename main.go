@@ -17,7 +17,9 @@ type jwtCustomClaims struct {
 }
 
 type LoginResponse struct {
-	Token string `json:"keyyy"`
+	Token   string `json:"token"`
+	Status  string `json:"status"`
+	Message string `json:"message"`
 }
 
 type AppointmentsResponse struct {
@@ -27,9 +29,10 @@ type AppointmentsResponse struct {
 }
 
 const (
-	SuccessResponse  string = "success"
-	ClashResponse    string = "clash"
-	NotFoundResponse string = "notFound"
+	SuccessResponse      string = "success"
+	ClashResponse        string = "clash"
+	NotFoundResponse     string = "notFound"
+	UnauthorizedResponse string = "unauthorized"
 )
 
 var appoint2 []Appointment
@@ -56,11 +59,12 @@ func showUsers(c echo.Context) error {
 func login(c echo.Context) error {
 	username := c.FormValue("username")
 	password := c.FormValue("password")
-
+	unauthorizedMessage := "密碼錯誤！"
+	successMessage := "驗證成功！"
 	pw, ok := users[username]
 
 	if pw != password || !ok {
-		return echo.ErrUnauthorized
+		return c.JSON(http.StatusOK, LoginResponse{Status: UnauthorizedResponse, Message: unauthorizedMessage})
 	}
 
 	claims := &jwtCustomClaims{
@@ -77,7 +81,7 @@ func login(c echo.Context) error {
 		return err
 	}
 
-	return c.JSON(http.StatusOK, LoginResponse{t})
+	return c.JSON(http.StatusOK, LoginResponse{Token: t, Status: SuccessResponse, Message: successMessage})
 }
 
 func createAppointments(c echo.Context) error {
