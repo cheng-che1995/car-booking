@@ -64,7 +64,7 @@ func login(c echo.Context) error {
 	pw, ok := users[username]
 
 	if pw != password || !ok {
-		return c.JSON(http.StatusOK, LoginResponse{Status: UnauthorizedResponse, Message: unauthorizedMessage})
+		return c.JSON(http.StatusUnauthorized, LoginResponse{Status: UnauthorizedResponse, Message: unauthorizedMessage})
 	}
 
 	claims := &jwtCustomClaims{
@@ -98,7 +98,7 @@ func createAppointments(c echo.Context) error {
 
 	for _, a := range appoint2 {
 		if a.Date == t {
-			return c.JSON(http.StatusOK, AppointmentsResponse{Status: ClashResponse, Message: errMessage})
+			return c.JSON(http.StatusForbidden, AppointmentsResponse{Status: ClashResponse, Message: errMessage})
 		}
 	}
 
@@ -181,7 +181,7 @@ func cancelAppointments(c echo.Context) error {
 	for i := range appoint2 {
 		if t == appoint2[i].Date {
 			if appoint2[i].Username != username {
-				return c.JSON(http.StatusOK, AppointmentsResponse{Status: ClashResponse, Message: errMessage})
+				return c.JSON(http.StatusForbidden, AppointmentsResponse{Status: ClashResponse, Message: errMessage})
 			}
 			found = true
 			for j := range appoint2[i : len(appoint2)-1] {
@@ -195,7 +195,7 @@ func cancelAppointments(c echo.Context) error {
 	if found {
 		return c.JSON(http.StatusOK, AppointmentsResponse{Status: SuccessResponse, Message: successMessage})
 	}
-	return c.JSON(http.StatusOK, AppointmentsResponse{Status: NotFoundResponse, Message: notFoundMessage})
+	return c.JSON(http.StatusNotFound, AppointmentsResponse{Status: NotFoundResponse, Message: notFoundMessage})
 }
 
 func main() {
@@ -219,5 +219,4 @@ func main() {
 	e.Use(middleware.Logger())
 	e.Use(middleware.CORS())
 	e.Logger.Fatal(e.Start(":1323"))
-
 }
