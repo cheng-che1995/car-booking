@@ -2,10 +2,12 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"sort"
 	"time"
 
+	"github.com/boltdb/bolt"
 	"github.com/golang-jwt/jwt"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -30,7 +32,7 @@ type AppointmentsResponse struct {
 
 const (
 	SuccessResponse      string = "success"
-	ClashResponse        string = "clash"
+	ConflictResponse     string = "conflict"
 	NotFoundResponse     string = "notFound"
 	UnauthorizedResponse string = "unauthorized"
 )
@@ -98,7 +100,7 @@ func createAppointments(c echo.Context) error {
 
 	for _, a := range appoint2 {
 		if a.Date == t {
-			return c.JSON(http.StatusForbidden, AppointmentsResponse{Status: ClashResponse, Message: errMessage})
+			return c.JSON(http.StatusForbidden, AppointmentsResponse{Status: ConflictResponse, Message: errMessage})
 		}
 	}
 
@@ -181,7 +183,7 @@ func cancelAppointments(c echo.Context) error {
 	for i := range appoint2 {
 		if t == appoint2[i].Date {
 			if appoint2[i].Username != username {
-				return c.JSON(http.StatusForbidden, AppointmentsResponse{Status: ClashResponse, Message: errMessage})
+				return c.JSON(http.StatusConflict, AppointmentsResponse{Status: ConflictResponse, Message: errMessage})
 			}
 			found = true
 			for j := range appoint2[i : len(appoint2)-1] {
@@ -199,6 +201,12 @@ func cancelAppointments(c echo.Context) error {
 }
 
 func main() {
+	db, err := bolt.Open("car-booking.db", 0600, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+
 	// var e *echo.Echo // = echo.New()
 	e := echo.New()
 	e.POST("/login", login)
