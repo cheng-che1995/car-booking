@@ -100,7 +100,7 @@ func createAppointments(c echo.Context) error {
 
 	for _, a := range appoint2 {
 		if a.Date == t {
-			return c.JSON(http.StatusForbidden, AppointmentsResponse{Status: ConflictResponse, Message: errMessage})
+			return c.JSON(http.StatusConflict, AppointmentsResponse{Status: ConflictResponse, Message: errMessage})
 		}
 	}
 
@@ -201,10 +201,14 @@ func cancelAppointments(c echo.Context) error {
 }
 
 func main() {
+	// Create a db named "car-booking.db" in current directory.
+	// It will be created if doesn't exsit.
+	// And keep it open
 	db, err := bolt.Open("car-booking.db", 0600, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
+	// db will be closed when this main() finished.
 	defer db.Close()
 
 	// var e *echo.Echo // = echo.New()
