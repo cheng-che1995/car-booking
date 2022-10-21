@@ -1,10 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
-	"sort"
 	"time"
 
 	"github.com/boltdb/bolt"
@@ -29,6 +29,11 @@ type AppointmentsResponse struct {
 	Status       string        `json:"status"`
 	Message      string        `json:"message"`
 }
+type AppointmentsResponse1 struct {
+	Appointments []Appointment1 `json:"appointments"`
+	Status       string         `json:"status"`
+	Message      string         `json:"message"`
+}
 
 const (
 	SuccessResponse      string = "success"
@@ -37,12 +42,16 @@ const (
 	UnauthorizedResponse string = "unauthorized"
 )
 
-var appoint2 []Appointment
-
 type Appointment struct {
 	Username string
 	Date     time.Time
 }
+type Appointment1 struct {
+	Item string
+	Date time.Time
+}
+
+var appoint2 []Appointment
 
 // type CustomFunc func(echo.Context) error
 var users map[string]string = map[string]string{
@@ -87,9 +96,17 @@ func login(c echo.Context) error {
 }
 
 func createAppointments(c echo.Context) error {
+	db, err := bolt.Open("car-booking.db", 0600, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+	var tx = &bolt.Tx{}
+	b := tx.Bucket([]byte("Appointments"))
 	token := c.Get("token").(*jwt.Token)
 	claims := token.Claims.(*jwtCustomClaims)
 	username := claims.Name
+	selectedItem := c.FormValue("selectedItem")
 	selectedDate := c.FormValue("selectedDate")
 	t, err := time.Parse("2006-01-02", selectedDate)
 	if err != nil {
@@ -97,71 +114,51 @@ func createAppointments(c echo.Context) error {
 	}
 	errMessage := fmt.Sprintf("%s，此日期已被預訂，請您重新選擇其他日期！", username)
 	successMessage := fmt.Sprintf("預約成功！%s，您的預約日期為： %s", username, t.Format("2006-01-02"))
+	appoint1 := Appointment1{}
 
-	for _, a := range appoint2 {
-		if a.Date == t {
+	b.ForEach(func(k, v []byte) error {
+		json.Unmarshal(v, &appoint1)
+		if appoint1.Date == t && appoint1.Item == selectedItem {
 			return c.JSON(http.StatusConflict, AppointmentsResponse{Status: ConflictResponse, Message: errMessage})
 		}
-	}
-
-	appoint2 = append(appoint2, Appointment{username, t})
-
-	sort.Slice(appoint2, func(i, j int) bool {
-		return appoint2[i].Date.Before(appoint2[j].Date)
+		return nil
 	})
-
+	data, _ := json.Marshal(appoint2)
+	b.Put([]byte(username), data)
 	return c.JSON(http.StatusOK, AppointmentsResponse{Status: SuccessResponse, Message: successMessage})
 }
 
 func searchAppointments(c echo.Context) error {
-	var filteredAppointments []Appointment
+	db, err := bolt.Open("car-booking.db", 0600, nil)
+	if err != nil {
+		return nil
+	}
+	defer db.Close()
+	var tx = &bolt.Tx{}
+	b := tx.Bucket([]byte("Appointments"))
+
 	filterByUsername := c.FormValue("filterByUsername")
+	filterByItem := c.FormValue("filterByItem")
 	filterByDateStart := c.FormValue("filterByDateStart")
 	filterByDateEnd := c.FormValue("filterByDateEnd")
 	startDate, _ := time.Parse("2006-01-02", filterByDateStart)
 	endDate, _ := time.Parse("2006-01-02", filterByDateEnd)
-
-	//****approach1:
-	// for _, a := range appoint2 {
-	// 	validUsername := true
-	// 	validStartDate := true
-	// 	validEndDate := true
-
-	// 	if filterByUsername != "" {
-	// 		if a.Username != filterByUsername {
-	// 			validUsername = false
-	// 		}
-	// 	}
-	// 	if filterByDateStart != "" {
-	// 		if a.Date.Before(startDate){
-	// 			validStartDate = false
-	// 		}
-	// 	}
-	// 	if filterByDateEnd != ""{
-	// 		if a.Date.After(endDate){
-	// 			validEndDate = false
-	// 		}
-	// 	}
-
-	// 	if validUsername && validStartDate && validEndDate {
-	// 		filteredAppointments = append(filteredAppointments, a)
-	// 	}
-	// }
-
-	//****approach2:
-	for _, a := range appoint2 {
-		if filterByUsername != "" && a.Username != filterByUsername {
-			continue
+	appoint1 := Appointment1{}
+	var filteredAppointments []Appointment1
+	b.ForEach(func(k, v []byte) error {
+		err = json.Unmarshal(v, &appoint1)
+		if err != nil {
+			return err
 		}
-		if filterByDateStart != "" && a.Date.Before(startDate) {
-			continue
+		if (filterByUsername != "" && string(k) != filterByUsername) ||
+			(filterByItem != "" && appoint1.Item != filterByItem) ||
+			(filterByDateStart != "" && appoint1.Date.Before(startDate)) ||
+			(filterByDateEnd != "" && appoint1.Date.After(endDate)) {
+			filteredAppointments = append(filteredAppointments, appoint1)
 		}
-		if filterByDateEnd != "" && a.Date.After(endDate) {
-			continue
-		}
-		filteredAppointments = append(filteredAppointments, a)
-	}
-	return c.JSON(http.StatusOK, AppointmentsResponse{Status: SuccessResponse, Appointments: filteredAppointments})
+		return nil
+	})
+	return c.JSON(http.StatusOK, AppointmentsResponse1{Status: SuccessResponse, Appointments: filteredAppointments})
 }
 
 func cancelAppointments(c echo.Context) error {
@@ -203,13 +200,21 @@ func cancelAppointments(c echo.Context) error {
 func main() {
 	// Create a db named "car-booking.db" in current directory.
 	// It will be created if doesn't exsit.
-	// And keep it open
+	// And keep it connected.
 	db, err := bolt.Open("car-booking.db", 0600, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
-	// db will be closed when this main() finished.
-	defer db.Close()
+	// Create a bucket(table) named "appointments".
+	db.Update(func(tx *bolt.Tx) error {
+		_, err := tx.CreateBucketIfNotExists([]byte("Appointments"))
+		if err != nil {
+			return fmt.Errorf("create bucket err: %s", err)
+		}
+		return nil
+	})
+	// Close the connection.
+	db.Close()
 
 	// var e *echo.Echo // = echo.New()
 	e := echo.New()
