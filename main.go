@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -30,9 +29,9 @@ type AppointmentsResponse struct {
 	Message      string        `json:"message"`
 }
 type AppointmentsResponse1 struct {
-	Appointments []Appointment1 `json:"appointments"`
-	Status       string         `json:"status"`
-	Message      string         `json:"message"`
+	Appointments []Appointment `json:"appointments"`
+	Status       string        `json:"status"`
+	Message      string        `json:"message"`
 }
 
 const (
@@ -47,11 +46,12 @@ type Appointment struct {
 	Date     time.Time
 }
 type Appointment1 struct {
-	Item string
-	Date time.Time
+	Username string
+	Date     time.Time
 }
 
 var appoint2 []Appointment
+var FilteredAppointments []Appointment
 
 // type CustomFunc func(echo.Context) error
 var users map[string]string = map[string]string{
@@ -101,12 +101,9 @@ func createAppointments(c echo.Context) error {
 		log.Fatal(err)
 	}
 	defer db.Close()
-	var tx = &bolt.Tx{}
-	b := tx.Bucket([]byte("Appointments"))
 	token := c.Get("token").(*jwt.Token)
 	claims := token.Claims.(*jwtCustomClaims)
 	username := claims.Name
-	selectedItem := c.FormValue("selectedItem")
 	selectedDate := c.FormValue("selectedDate")
 	t, err := time.Parse("2006-01-02", selectedDate)
 	if err != nil {
@@ -114,18 +111,17 @@ func createAppointments(c echo.Context) error {
 	}
 	errMessage := fmt.Sprintf("%s，此日期已被預訂，請您重新選擇其他日期！", username)
 	successMessage := fmt.Sprintf("預約成功！%s，您的預約日期為： %s", username, t.Format("2006-01-02"))
-	appoint1 := Appointment1{}
 
-	b.ForEach(func(k, v []byte) error {
-		json.Unmarshal(v, &appoint1)
-		if appoint1.Date == t && appoint1.Item == selectedItem {
-			return c.JSON(http.StatusConflict, AppointmentsResponse{Status: ConflictResponse, Message: errMessage})
+	db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("Appointments"))
+		if b.Get([]byte(t.Format("2006-01-02"))) == nil {
+			b.Put([]byte(t.Format("2006-01-02")), []byte(username))
+			return c.JSON(http.StatusOK, AppointmentsResponse1{Status: SuccessResponse, Message: successMessage})
+		} else {
+			return c.JSON(http.StatusConflict, AppointmentsResponse1{Status: ConflictResponse, Message: errMessage})
 		}
-		return nil
 	})
-	data, _ := json.Marshal(appoint2)
-	b.Put([]byte(username), data)
-	return c.JSON(http.StatusOK, AppointmentsResponse{Status: SuccessResponse, Message: successMessage})
+	return nil
 }
 
 func searchAppointments(c echo.Context) error {
@@ -134,31 +130,27 @@ func searchAppointments(c echo.Context) error {
 		return nil
 	}
 	defer db.Close()
-	var tx = &bolt.Tx{}
-	b := tx.Bucket([]byte("Appointments"))
 
 	filterByUsername := c.FormValue("filterByUsername")
-	filterByItem := c.FormValue("filterByItem")
 	filterByDateStart := c.FormValue("filterByDateStart")
 	filterByDateEnd := c.FormValue("filterByDateEnd")
 	startDate, _ := time.Parse("2006-01-02", filterByDateStart)
 	endDate, _ := time.Parse("2006-01-02", filterByDateEnd)
-	appoint1 := Appointment1{}
-	var filteredAppointments []Appointment1
-	b.ForEach(func(k, v []byte) error {
-		err = json.Unmarshal(v, &appoint1)
-		if err != nil {
-			return err
-		}
-		if (filterByUsername != "" && string(k) != filterByUsername) ||
-			(filterByItem != "" && appoint1.Item != filterByItem) ||
-			(filterByDateStart != "" && appoint1.Date.Before(startDate)) ||
-			(filterByDateEnd != "" && appoint1.Date.After(endDate)) {
-			filteredAppointments = append(filteredAppointments, appoint1)
-		}
+
+	db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("Appointments"))
+		b.ForEach(func(k, v []byte) error {
+			kt, _ := time.Parse("2006-01-02", string(k))
+			if (filterByUsername != "" && string(v) != filterByUsername) ||
+				(filterByDateStart != "" && kt.Before(startDate)) ||
+				(filterByDateEnd != "" && kt.After(endDate)) {
+				FilteredAppointments = append(FilteredAppointments, Appointment{Username: string(v), Date: kt})
+			}
+			return nil
+		})
 		return nil
 	})
-	return c.JSON(http.StatusOK, AppointmentsResponse1{Status: SuccessResponse, Appointments: filteredAppointments})
+	return c.JSON(http.StatusOK, AppointmentsResponse1{Status: SuccessResponse, Appointments: FilteredAppointments})
 }
 
 func cancelAppointments(c echo.Context) error {
