@@ -51,7 +51,6 @@ type Appointment1 struct {
 }
 
 var appoint2 []Appointment
-var FilteredAppointments []Appointment
 
 // type CustomFunc func(echo.Context) error
 var users map[string]string = map[string]string{
@@ -111,7 +110,6 @@ func createAppointments(c echo.Context) error {
 	}
 	errMessage := fmt.Sprintf("%s，此日期已被預訂，請您重新選擇其他日期！", username)
 	successMessage := fmt.Sprintf("預約成功！%s，您的預約日期為： %s", username, t.Format("2006-01-02"))
-
 	db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Appointments"))
 		if b.Get([]byte(t.Format("2006-01-02"))) == nil {
@@ -130,34 +128,38 @@ func searchAppointments(c echo.Context) error {
 		return nil
 	}
 	defer db.Close()
-
 	filterByUsername := c.FormValue("filterByUsername")
 	filterByDateStart := c.FormValue("filterByDateStart")
 	filterByDateEnd := c.FormValue("filterByDateEnd")
 	startDate, _ := time.Parse("2006-01-02", filterByDateStart)
 	endDate, _ := time.Parse("2006-01-02", filterByDateEnd)
-
+	FilteredAppointments := []Appointment{}
 	db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Appointments"))
 		b.ForEach(func(k, v []byte) error {
 			kt, _ := time.Parse("2006-01-02", string(k))
-			if (filterByUsername != "" && string(v) != filterByUsername) ||
-				(filterByDateStart != "" && kt.Before(startDate)) ||
-				(filterByDateEnd != "" && kt.After(endDate)) {
+			if (filterByUsername == "" || string(v) != filterByUsername) &&
+				(filterByDateStart == "" || (startDate.Before(kt) || startDate.Equal(kt))) &&
+				(filterByDateEnd == "" || (endDate.After(kt)) || endDate.Equal(kt)) {
 				FilteredAppointments = append(FilteredAppointments, Appointment{Username: string(v), Date: kt})
 			}
 			return nil
 		})
+
 		return nil
 	})
 	return c.JSON(http.StatusOK, AppointmentsResponse1{Status: SuccessResponse, Appointments: FilteredAppointments})
 }
 
 func cancelAppointments(c echo.Context) error {
+	db, err := bolt.Open("car-booking.db", 0600, nil)
+	if err != nil {
+		return nil
+	}
+	defer db.Close()
 	token := c.Get("token").(*jwt.Token)
 	claims := token.Claims.(*jwtCustomClaims)
 	username := claims.Name
-
 	selectedDate := c.FormValue("selectedDate")
 	t, err := time.Parse("2006-01-02", selectedDate)
 	if err != nil {
@@ -166,7 +168,6 @@ func cancelAppointments(c echo.Context) error {
 	successMessage := fmt.Sprintf("取消成功！%s，您已將 %s預約取消！", username, t.Format("2006-01-02"))
 	errMessage := fmt.Sprintf("此%s日期不屬於%s您的預約！", t.Format("2006-01-02"), username)
 	notFoundMessage := fmt.Sprintf("查無此預約！%s請您重新選擇日期！", username)
-
 	var found bool
 
 	for i := range appoint2 {
