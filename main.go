@@ -28,11 +28,6 @@ type AppointmentsResponse struct {
 	Status       string        `json:"status"`
 	Message      string        `json:"message"`
 }
-type AppointmentsResponse1 struct {
-	Appointments []Appointment `json:"appointments"`
-	Status       string        `json:"status"`
-	Message      string        `json:"message"`
-}
 
 const (
 	SuccessResponse      string = "success"
@@ -45,12 +40,6 @@ type Appointment struct {
 	Username string
 	Date     time.Time
 }
-type Appointment1 struct {
-	Username string
-	Date     time.Time
-}
-
-var appoint2 []Appointment
 
 // type CustomFunc func(echo.Context) error
 var users map[string]string = map[string]string{
@@ -112,11 +101,11 @@ func createAppointments(c echo.Context) error {
 	successMessage := fmt.Sprintf("預約成功！%s，您的預約日期為： %s", username, t.Format("2006-01-02"))
 	db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Appointments"))
-		if b.Get([]byte(t.Format("2006-01-02"))) == nil {
-			b.Put([]byte(t.Format("2006-01-02")), []byte(username))
-			return c.JSON(http.StatusOK, AppointmentsResponse1{Status: SuccessResponse, Message: successMessage})
+		if b.Get([]byte(selectedDate)) == nil {
+			b.Put([]byte(selectedDate), []byte(username))
+			return c.JSON(http.StatusOK, AppointmentsResponse{Status: SuccessResponse, Message: successMessage})
 		} else {
-			return c.JSON(http.StatusConflict, AppointmentsResponse1{Status: ConflictResponse, Message: errMessage})
+			return c.JSON(http.StatusConflict, AppointmentsResponse{Status: ConflictResponse, Message: errMessage})
 		}
 	})
 	return nil
@@ -145,10 +134,9 @@ func searchAppointments(c echo.Context) error {
 			}
 			return nil
 		})
-
 		return nil
 	})
-	return c.JSON(http.StatusOK, AppointmentsResponse1{Status: SuccessResponse, Appointments: FilteredAppointments})
+	return c.JSON(http.StatusOK, AppointmentsResponse{Status: SuccessResponse, Appointments: FilteredAppointments})
 }
 
 func cancelAppointments(c echo.Context) error {
@@ -168,26 +156,19 @@ func cancelAppointments(c echo.Context) error {
 	successMessage := fmt.Sprintf("取消成功！%s，您已將 %s預約取消！", username, t.Format("2006-01-02"))
 	errMessage := fmt.Sprintf("此%s日期不屬於%s您的預約！", t.Format("2006-01-02"), username)
 	notFoundMessage := fmt.Sprintf("查無此預約！%s請您重新選擇日期！", username)
-	var found bool
-
-	for i := range appoint2 {
-		if t == appoint2[i].Date {
-			if appoint2[i].Username != username {
-				return c.JSON(http.StatusConflict, AppointmentsResponse{Status: ConflictResponse, Message: errMessage})
-			}
-			found = true
-			for j := range appoint2[i : len(appoint2)-1] {
-				appoint2[i+j].Date = appoint2[i+j+1].Date
-			}
-			appoint2 = appoint2[:len(appoint2)-1]
-			break
+	db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("Appointments"))
+		v := b.Get([]byte(selectedDate))
+		if v == nil {
+			return c.JSON(http.StatusNotFound, AppointmentsResponse{Status: NotFoundResponse, Message: notFoundMessage})
+		} else if (v != nil) && (string(v) != username) {
+			return c.JSON(http.StatusConflict, AppointmentsResponse{Status: ConflictResponse, Message: errMessage})
+		} else {
+			b.Delete([]byte(selectedDate))
+			return c.JSON(http.StatusOK, AppointmentsResponse{Status: SuccessResponse, Message: successMessage})
 		}
-
-	}
-	if found {
-		return c.JSON(http.StatusOK, AppointmentsResponse{Status: SuccessResponse, Message: successMessage})
-	}
-	return c.JSON(http.StatusNotFound, AppointmentsResponse{Status: NotFoundResponse, Message: notFoundMessage})
+	})
+	return nil
 }
 
 func main() {
