@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"sort"
 	"time"
 
 	"github.com/boltdb/bolt"
@@ -36,8 +35,6 @@ const (
 	NotFoundResponse     string = "notFound"
 	UnauthorizedResponse string = "unauthorized"
 )
-
-var appoint2 []Appointment
 
 type Appointment struct {
 	Username string
@@ -87,6 +84,11 @@ func login(c echo.Context) error {
 }
 
 func createAppointments(c echo.Context) error {
+	db, err := bolt.Open("car-booking.db", 0600, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
 	token := c.Get("token").(*jwt.Token)
 	claims := token.Claims.(*jwtCustomClaims)
 	username := claims.Name
@@ -97,78 +99,55 @@ func createAppointments(c echo.Context) error {
 	}
 	errMessage := fmt.Sprintf("%s，此日期已被預訂，請您重新選擇其他日期！", username)
 	successMessage := fmt.Sprintf("預約成功！%s，您的預約日期為： %s", username, t.Format("2006-01-02"))
-
-	for _, a := range appoint2 {
-		if a.Date == t {
+	db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("Appointments"))
+		if b.Get([]byte(selectedDate)) == nil {
+			b.Put([]byte(selectedDate), []byte(username))
+			return c.JSON(http.StatusOK, AppointmentsResponse{Status: SuccessResponse, Message: successMessage})
+		} else {
 			return c.JSON(http.StatusConflict, AppointmentsResponse{Status: ConflictResponse, Message: errMessage})
 		}
-	}
-
-	appoint2 = append(appoint2, Appointment{username, t})
-
-	sort.Slice(appoint2, func(i, j int) bool {
-		return appoint2[i].Date.Before(appoint2[j].Date)
 	})
-
-	return c.JSON(http.StatusOK, AppointmentsResponse{Status: SuccessResponse, Message: successMessage})
+	return nil
 }
 
 func searchAppointments(c echo.Context) error {
-	var filteredAppointments []Appointment
+	db, err := bolt.Open("car-booking.db", 0600, nil)
+	if err != nil {
+		return nil
+	}
+	defer db.Close()
 	filterByUsername := c.FormValue("filterByUsername")
 	filterByDateStart := c.FormValue("filterByDateStart")
 	filterByDateEnd := c.FormValue("filterByDateEnd")
 	startDate, _ := time.Parse("2006-01-02", filterByDateStart)
 	endDate, _ := time.Parse("2006-01-02", filterByDateEnd)
-
-	//****approach1:
-	// for _, a := range appoint2 {
-	// 	validUsername := true
-	// 	validStartDate := true
-	// 	validEndDate := true
-
-	// 	if filterByUsername != "" {
-	// 		if a.Username != filterByUsername {
-	// 			validUsername = false
-	// 		}
-	// 	}
-	// 	if filterByDateStart != "" {
-	// 		if a.Date.Before(startDate){
-	// 			validStartDate = false
-	// 		}
-	// 	}
-	// 	if filterByDateEnd != ""{
-	// 		if a.Date.After(endDate){
-	// 			validEndDate = false
-	// 		}
-	// 	}
-
-	// 	if validUsername && validStartDate && validEndDate {
-	// 		filteredAppointments = append(filteredAppointments, a)
-	// 	}
-	// }
-
-	//****approach2:
-	for _, a := range appoint2 {
-		if filterByUsername != "" && a.Username != filterByUsername {
-			continue
-		}
-		if filterByDateStart != "" && a.Date.Before(startDate) {
-			continue
-		}
-		if filterByDateEnd != "" && a.Date.After(endDate) {
-			continue
-		}
-		filteredAppointments = append(filteredAppointments, a)
-	}
-	return c.JSON(http.StatusOK, AppointmentsResponse{Status: SuccessResponse, Appointments: filteredAppointments})
+	FilteredAppointments := []Appointment{}
+	db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("Appointments"))
+		b.ForEach(func(k, v []byte) error {
+			kt, _ := time.Parse("2006-01-02", string(k))
+			if (filterByUsername == "" || string(v) != filterByUsername) &&
+				(filterByDateStart == "" || (startDate.Before(kt) || startDate.Equal(kt))) &&
+				(filterByDateEnd == "" || (endDate.After(kt)) || endDate.Equal(kt)) {
+				FilteredAppointments = append(FilteredAppointments, Appointment{Username: string(v), Date: kt})
+			}
+			return nil
+		})
+		return nil
+	})
+	return c.JSON(http.StatusOK, AppointmentsResponse{Status: SuccessResponse, Appointments: FilteredAppointments})
 }
 
 func cancelAppointments(c echo.Context) error {
+	db, err := bolt.Open("car-booking.db", 0600, nil)
+	if err != nil {
+		return nil
+	}
+	defer db.Close()
 	token := c.Get("token").(*jwt.Token)
 	claims := token.Claims.(*jwtCustomClaims)
 	username := claims.Name
-
 	selectedDate := c.FormValue("selectedDate")
 	t, err := time.Parse("2006-01-02", selectedDate)
 	if err != nil {
@@ -177,39 +156,39 @@ func cancelAppointments(c echo.Context) error {
 	successMessage := fmt.Sprintf("取消成功！%s，您已將 %s預約取消！", username, t.Format("2006-01-02"))
 	errMessage := fmt.Sprintf("此%s日期不屬於%s您的預約！", t.Format("2006-01-02"), username)
 	notFoundMessage := fmt.Sprintf("查無此預約！%s請您重新選擇日期！", username)
-
-	var found bool
-
-	for i := range appoint2 {
-		if t == appoint2[i].Date {
-			if appoint2[i].Username != username {
-				return c.JSON(http.StatusConflict, AppointmentsResponse{Status: ConflictResponse, Message: errMessage})
-			}
-			found = true
-			for j := range appoint2[i : len(appoint2)-1] {
-				appoint2[i+j].Date = appoint2[i+j+1].Date
-			}
-			appoint2 = appoint2[:len(appoint2)-1]
-			break
+	db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("Appointments"))
+		v := b.Get([]byte(selectedDate))
+		if v == nil {
+			return c.JSON(http.StatusNotFound, AppointmentsResponse{Status: NotFoundResponse, Message: notFoundMessage})
+		} else if (v != nil) && (string(v) != username) {
+			return c.JSON(http.StatusConflict, AppointmentsResponse{Status: ConflictResponse, Message: errMessage})
+		} else {
+			b.Delete([]byte(selectedDate))
+			return c.JSON(http.StatusOK, AppointmentsResponse{Status: SuccessResponse, Message: successMessage})
 		}
-
-	}
-	if found {
-		return c.JSON(http.StatusOK, AppointmentsResponse{Status: SuccessResponse, Message: successMessage})
-	}
-	return c.JSON(http.StatusNotFound, AppointmentsResponse{Status: NotFoundResponse, Message: notFoundMessage})
+	})
+	return nil
 }
 
 func main() {
 	// Create a db named "car-booking.db" in current directory.
 	// It will be created if doesn't exsit.
-	// And keep it open
+	// And keep it connected.
 	db, err := bolt.Open("car-booking.db", 0600, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
-	// db will be closed when this main() finished.
-	defer db.Close()
+	// Create a bucket(table) named "appointments".
+	db.Update(func(tx *bolt.Tx) error {
+		_, err := tx.CreateBucketIfNotExists([]byte("Appointments"))
+		if err != nil {
+			return fmt.Errorf("create bucket err: %s", err)
+		}
+		return nil
+	})
+	// Close the connection.
+	db.Close()
 
 	// var e *echo.Echo // = echo.New()
 	e := echo.New()
