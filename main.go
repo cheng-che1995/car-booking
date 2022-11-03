@@ -162,7 +162,7 @@ func cancelAppointments(c echo.Context) error {
 		if v == nil {
 			return c.JSON(http.StatusNotFound, AppointmentsResponse{Status: NotFoundResponse, Message: notFoundMessage})
 		} else if (v != nil) && (string(v) != username) {
-			return c.JSON(http.StatusConflict, AppointmentsResponse{Status: ConflictResponse, Message: errMessage})
+			return c.JSON(http.StatusUnauthorized, AppointmentsResponse{Status: UnauthorizedResponse, Message: errMessage})
 		} else {
 			b.Delete([]byte(selectedDate))
 			return c.JSON(http.StatusOK, AppointmentsResponse{Status: SuccessResponse, Message: successMessage})
