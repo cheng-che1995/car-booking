@@ -82,3 +82,24 @@ func (b BoltRepository) Search(a *SearchFilter) ([]Appointment, error) {
 	})
 	return FilteredAppointments, err
 }
+
+func (b BoltRepository) Delete(a *Appointment) error {
+	db, err := b.openDB()
+	if err != nil {
+		return err
+	}
+	err = db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("Appointments"))
+		dateString := a.Date.Format("2006-01-02")
+		v := b.Get([]byte(dateString))
+		if v == nil {
+			return ErrNotFound
+		} else if (v != nil) && (string(v) != a.Username) {
+			return ErrUnauthorized
+		} else {
+			b.Delete([]byte(dateString))
+			return nil
+		}
+	})
+	return err
+}

@@ -125,11 +125,6 @@ func searchAppointments(c echo.Context) error {
 }
 
 func cancelAppointments(c echo.Context) error {
-	db, err := bolt.Open("car-booking.db", 0600, nil)
-	if err != nil {
-		return nil
-	}
-	defer db.Close()
 	token := c.Get("token").(*jwt.Token)
 	claims := token.Claims.(*jwtCustomClaims)
 	username := claims.Name
@@ -141,19 +136,19 @@ func cancelAppointments(c echo.Context) error {
 	successMessage := fmt.Sprintf("取消成功！%s，您已將 %s預約取消！", username, t.Format("2006-01-02"))
 	errMessage := fmt.Sprintf("此%s日期不屬於%s您的預約！", t.Format("2006-01-02"), username)
 	notFoundMessage := fmt.Sprintf("查無此預約！%s請您重新選擇日期！", username)
-	db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte("Appointments"))
-		v := b.Get([]byte(selectedDate))
-		if v == nil {
-			return c.JSON(http.StatusNotFound, AppointmentsResponse{Status: NotFoundResponse, Message: notFoundMessage})
-		} else if (v != nil) && (string(v) != username) {
-			return c.JSON(http.StatusConflict, AppointmentsResponse{Status: ConflictResponse, Message: errMessage})
-		} else {
-			b.Delete([]byte(selectedDate))
-			return c.JSON(http.StatusOK, AppointmentsResponse{Status: SuccessResponse, Message: successMessage})
-		}
-	})
-	return nil
+	br := BoltRepository{dbPath: "car-booking.db"}
+	selectAppointments := Appointment{
+		Username: username,
+		Date:     t,
+	}
+	err = br.Delete(&selectAppointments)
+	if err == ErrNotFound {
+		return c.JSON(http.StatusNotFound, AppointmentsResponse{Status: NotFoundResponse, Message: notFoundMessage})
+	} else if err == ErrUnauthorized {
+		return c.JSON(http.StatusConflict, AppointmentsResponse{Status: UnauthorizedResponse, Message: errMessage})
+	} else {
+		return c.JSON(http.StatusOK, AppointmentsResponse{Status: SuccessResponse, Message: successMessage})
+	}
 }
 
 func main() {
