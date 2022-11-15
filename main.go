@@ -112,6 +112,7 @@ func searchAppointments(c echo.Context) error {
 	filterByDateStart := c.FormValue("filterByDateStart")
 	filterByDateEnd := c.FormValue("filterByDateEnd")
 	br := BoltRepository{dbPath: "car-booking.db"}
+	//TODO:
 	selectedFilter := SearchFilter{
 		Username:  &filterByUsername,
 		DateStart: &filterByDateStart,
@@ -141,21 +142,22 @@ func cancelAppointments(c echo.Context) error {
 		Username: username,
 		Date:     t,
 	}
-	err = br.Delete(&selectAppointments)
-	if err == ErrNotFound {
+
+	if err = br.Delete(&selectAppointments); err == nil {
+		return c.JSON(http.StatusOK, AppointmentsResponse{Status: SuccessResponse, Message: successMessage})
+	} else if err == ErrNotFound {
 		return c.JSON(http.StatusNotFound, AppointmentsResponse{Status: NotFoundResponse, Message: notFoundMessage})
 	} else if err == ErrUnauthorized {
 		return c.JSON(http.StatusConflict, AppointmentsResponse{Status: UnauthorizedResponse, Message: errMessage})
-	} else {
-		return c.JSON(http.StatusOK, AppointmentsResponse{Status: SuccessResponse, Message: successMessage})
 	}
+	return err
 }
 
 func main() {
 	// Create a db named "car-booking.db" in current directory.
 	// It will be created if doesn't exsit.
 	// And keep it connected.
-	db, err := bolt.Open("car-booking.db", 0600, nil)
+	db, err := bolt.Open("car-booking.db", 0600, &bolt.Options{Timeout: 1 * time.Second})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -187,7 +189,10 @@ func main() {
 	b.POST("/appointments", createAppointments)
 	b.GET("/appointments", searchAppointments)
 	b.DELETE("/appointments", cancelAppointments)
-	e.Use(middleware.Logger())
+	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
+		Format:           "time=${time_custom}, status=${status}, method=${method}, uri=${uri}\nerror:{${error}}\n",
+		CustomTimeFormat: "2006-01-02 15:04:05",
+	}))
 	e.Use(middleware.CORS())
 	e.Logger.Fatal(e.Start(":1323"))
 }

@@ -30,7 +30,7 @@ type BoltRepository struct {
 }
 
 func (b BoltRepository) openDB() (*bolt.DB, error) {
-	return bolt.Open(b.dbPath, 0600, nil)
+	return bolt.Open(b.dbPath, 0600, &bolt.Options{Timeout: 1 * time.Second})
 }
 
 func (b BoltRepository) Create(a *Appointment) error {
@@ -61,6 +61,17 @@ func (b BoltRepository) Search(a *SearchFilter) ([]Appointment, error) {
 	defer db.Close()
 	var startDate, endDate time.Time
 	FilteredAppointments := []Appointment{}
+	//TODO: use better way to check empty string
+	if *a.Username == "" {
+		a.Username = nil
+	}
+	if *a.DateStart == "" {
+		a.DateStart = nil
+	}
+	if *a.DateEnd == "" {
+		a.DateEnd = nil
+	}
+	//
 	if a.DateStart != nil {
 		startDate, _ = time.Parse("2006-01-02", *a.DateStart)
 	}
@@ -71,7 +82,7 @@ func (b BoltRepository) Search(a *SearchFilter) ([]Appointment, error) {
 		b := tx.Bucket([]byte("Appointments"))
 		b.ForEach(func(k, v []byte) error {
 			kt, _ := time.Parse("2006-01-02", string(k))
-			if (a.Username == nil || string(v) != *a.Username) &&
+			if (a.Username == nil || *a.Username == string(v)) &&
 				(a.DateStart == nil || (startDate.Before(kt) || startDate.Equal(kt))) &&
 				(a.DateEnd == nil || (endDate.After(kt)) || endDate.Equal(kt)) {
 				FilteredAppointments = append(FilteredAppointments, Appointment{Username: string(v), Date: kt})
@@ -91,15 +102,14 @@ func (b BoltRepository) Delete(a *Appointment) error {
 	err = db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Appointments"))
 		dateString := a.Date.Format("2006-01-02")
-		v := b.Get([]byte(dateString))
-		if v == nil {
+		if v := b.Get([]byte(dateString)); v == nil {
 			return ErrNotFound
 		} else if (v != nil) && (string(v) != a.Username) {
 			return ErrUnauthorized
-		} else {
-			b.Delete([]byte(dateString))
-			return nil
 		}
+		b.Delete([]byte(dateString))
+		return nil
+
 	})
 	return err
 }
