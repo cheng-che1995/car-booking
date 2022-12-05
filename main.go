@@ -137,6 +137,7 @@ func cancelAppointments(c echo.Context) error {
 	successMessage := fmt.Sprintf("取消成功！%s，您已將 %s預約取消！", username, t.Format("2006-01-02"))
 	errMessage := fmt.Sprintf("此%s日期不屬於%s您的預約！", t.Format("2006-01-02"), username)
 	notFoundMessage := fmt.Sprintf("查無此預約！%s請您重新選擇日期！", username)
+
 	br := BoltRepository{dbPath: "car-booking.db"}
 	selectAppointments := Appointment{
 		Username: username,
@@ -151,6 +152,7 @@ func cancelAppointments(c echo.Context) error {
 		return c.JSON(http.StatusConflict, AppointmentsResponse{Status: UnauthorizedResponse, Message: errMessage})
 	}
 	return err
+
 }
 
 func main() {
