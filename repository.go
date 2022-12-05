@@ -72,6 +72,9 @@ func (b BoltRepository) Search(a *SearchFilter) ([]Appointment, error) {
 		a.DateEnd = nil
 	}
 	//
+	// checkEmptyString(a.Username)
+	// checkEmptyString(a.DateStart)
+	// checkEmptyString(a.DateEnd)
 	if a.DateStart != nil {
 		startDate, _ = time.Parse("2006-01-02", *a.DateStart)
 	}
@@ -99,6 +102,7 @@ func (b BoltRepository) Delete(a *Appointment) error {
 	if err != nil {
 		return err
 	}
+	defer db.Close()
 	err = db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("Appointments"))
 		dateString := a.Date.Format("2006-01-02")
