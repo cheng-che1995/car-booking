@@ -2,25 +2,34 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 
 	_ "github.com/go-sql-driver/mysql"
 )
 
+// database info
+const (
+	USERNAME = "root"
+	PASSWORD = "root"
+	NETWORK  = "tcp"
+	SERVER   = "127.0.0.1"
+	PORT     = 3306
+	DATABASE = "testdb"
+)
+
 func init() {
-
-	conn := "root:root@tcp(127.0.0.1:3306)/test"
-
+	conn := fmt.Sprintf("%s:%s@%s(%s:%d)/%s", USERNAME, PASSWORD, NETWORK, SERVER, PORT, DATABASE)
 	db, err := sql.Open("mysql", conn)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer db.Close()
 
-	err = db.Ping()
-	if err != nil {
+	if err = db.Ping(); err != nil {
 		log.Fatal(err)
 	}
+
 }
 
 // CREATE TABLE `users`(
