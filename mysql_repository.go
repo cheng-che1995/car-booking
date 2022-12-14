@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
@@ -18,6 +19,26 @@ const (
 	DATABASE = "testdb"
 )
 
+var schema = []string{
+	`CREATE TABLE IF NOT EXISTS users(
+		id INT NOT NULL AUTO_INCREMENT,
+		uuid VARCHAR(36) NOT NULL,
+		username VARCHAR(100) NOT NULL DEFAULT '',
+		UNIQUE (uuid),
+		PRIMARY KEY (id)
+	)`,
+	`CREATE TABLE IF NOT EXISTS appointments(
+		id INT NOT NULL AUTO_INCREMENT,
+		parant_uuid VARCHAR(36),
+		item VARCHAR(100) NOT NULL DEFAULT '',
+		order_by VARCHAR(100) NOT NULL DEFAULT '',
+		order_time TIMESTAMP NOT NULL,
+		create_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		PRIMARY KEY (id),
+		FOREIGN KEY(parant_uuid) REFERENCES users (uuid)
+	)`,
+}
+
 func init() {
 	conn := fmt.Sprintf("%s:%s@%s(%s:%d)/%s", USERNAME, PASSWORD, NETWORK, SERVER, PORT, DATABASE)
 	db, err := sql.Open("mysql", conn)
@@ -29,18 +50,20 @@ func init() {
 	if err = db.Ping(); err != nil {
 		log.Fatal(err)
 	}
+	tx, err := db.BeginTx(context.TODO(), nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer tx.Rollback()
 
+	for _, e := range schema {
+		_, err := db.Exec(e)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		log.Fatal(err)
+	}
 }
-
-// CREATE TABLE `users`(
-// 	`uuid` VARCHAR(36) PRIMARY KEY NOT NULL,
-// 	`username` VARCHAR(64) DEFAULT NULL,
-// )
-
-// CREATE TABLE `appointments`(
-// 	`uuid` VARCHAR(36) PRIMARY KEY NOT NULL,
-// 	`item` VVARCHAR(64) DEFAULT NULL,
-// 	`order_by` VARCHAR(64) DEFAULT NULL,
-// 	`created_time` DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
-// 	`selected_time` DATETIME NULL DEFAULT NULL,
-// )

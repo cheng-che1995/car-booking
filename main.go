@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
@@ -156,31 +157,39 @@ func cancelAppointments(c echo.Context) error {
 }
 
 func main() {
-	// Create a db named "car-booking.db" in current directory.
-	// It will be created if doesn't exsit.
-	// And keep it connected.
-	db, err := bolt.Open("car-booking.db", 0600, &bolt.Options{Timeout: 1 * time.Second})
+	//Bolt database
+	dbBolt, err := bolt.Open("car-booking.db", 0600, &bolt.Options{Timeout: 1 * time.Second})
 	if err != nil {
 		log.Fatal(err)
 	}
-	// Create a bucket(table) named "appointments".
-	db.Update(func(tx *bolt.Tx) error {
+	dbBolt.Update(func(tx *bolt.Tx) error {
 		_, err := tx.CreateBucketIfNotExists([]byte("Appointments"))
 		if err != nil {
 			return fmt.Errorf("create bucket err: %s", err)
 		}
 		return nil
 	})
-	// Close the connection.
-	db.Close()
+	dbBolt.Close()
+	//
 
-	// var e *echo.Echo // = echo.New()
+	//Mysql database
+	conn := fmt.Sprintf("%s:%s@%s(%s:%d)/%s", USERNAME, PASSWORD, NETWORK, SERVER, PORT, DATABASE)
+	dbMysql, err := sql.Open("mysql", conn)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer dbMysql.Close()
+
+	if err = dbMysql.Ping(); err != nil {
+		log.Fatal(err)
+	}
+	//
+
 	e := echo.New()
 	e.POST("/login", login)
 	e.GET("/users", showUsers)
 	b := e.Group("/booking")
 	b.Use(middleware.JWTWithConfig(middleware.JWTConfig{
-		// Claims:     &jwtCustomClaims{},
 		Claims:     &jwtCustomClaims{},
 		SigningKey: []byte("secret"),
 		ContextKey: "token",
