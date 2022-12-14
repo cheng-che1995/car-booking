@@ -173,7 +173,7 @@ func main() {
 	//
 
 	//Mysql database
-	conn := fmt.Sprintf("%s:%s@%s(%s:%d)/%s", USERNAME, PASSWORD, NETWORK, SERVER, PORT, DATABASE)
+	conn := fmt.Sprintf("%s:%s@%s(%s:%d)/%s?parseTime=true", USERNAME, PASSWORD, NETWORK, SERVER, PORT, DATABASE)
 	dbMysql, err := sql.Open("mysql", conn)
 	if err != nil {
 		log.Fatal(err)

@@ -31,16 +31,16 @@ var schema = []string{
 		id INT NOT NULL AUTO_INCREMENT,
 		parant_uuid VARCHAR(36),
 		item VARCHAR(100) NOT NULL DEFAULT '',
-		order_by VARCHAR(100) NOT NULL DEFAULT '',
-		order_time TIMESTAMP NOT NULL,
-		create_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		order_time DATETIME NOT NULL,
+		create_by VARCHAR(100) NOT NULL DEFAULT '',
+		create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		PRIMARY KEY (id),
 		FOREIGN KEY(parant_uuid) REFERENCES users (uuid)
 	)`,
 }
 
 func init() {
-	conn := fmt.Sprintf("%s:%s@%s(%s:%d)/%s", USERNAME, PASSWORD, NETWORK, SERVER, PORT, DATABASE)
+	conn := fmt.Sprintf("%s:%s@%s(%s:%d)/%s?parseTime=true", USERNAME, PASSWORD, NETWORK, SERVER, PORT, DATABASE)
 	db, err := sql.Open("mysql", conn)
 	if err != nil {
 		log.Fatal(err)
