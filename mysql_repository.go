@@ -29,7 +29,7 @@ var schema = []string{
 	)`,
 	`CREATE TABLE IF NOT EXISTS appointments(
 		id INT NOT NULL AUTO_INCREMENT,
-		parant_uuid VARCHAR(36),
+		parant_uuid VARCHAR(36) NOT NULL,
 		item VARCHAR(100) NOT NULL DEFAULT '',
 		order_time DATETIME NOT NULL,
 		create_by VARCHAR(100) NOT NULL DEFAULT '',
