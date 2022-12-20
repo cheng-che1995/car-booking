@@ -4,12 +4,20 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
 
 	_ "github.com/go-sql-driver/mysql"
 )
 
 // database info
+
+type DbConfig struct {
+	DbHost     string
+	DbPort     string
+	DbUser     string
+	DbPassword string
+	DbName     string
+}
+
 const (
 	USERNAME = "root"
 	PASSWORD = "root"
@@ -39,31 +47,90 @@ var schema = []string{
 	)`,
 }
 
-func init() {
-	conn := fmt.Sprintf("%s:%s@%s(%s:%d)/%s?parseTime=true", USERNAME, PASSWORD, NETWORK, SERVER, PORT, DATABASE)
-	db, err := sql.Open("mysql", conn)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer db.Close()
+type Repository struct {
+	db     *sql.DB
+	config DbConfig
+}
 
-	if err = db.Ping(); err != nil {
-		log.Fatal(err)
-	}
-	tx, err := db.BeginTx(context.TODO(), nil)
+func NewRepository(config DbConfig) *Repository {
+	return &Repository{config: config}
+}
+
+func (m *Repository) initialize() error {
+	tx, err := m.db.BeginTx(context.TODO(), nil)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer tx.Rollback()
 
 	for _, e := range schema {
-		_, err := db.Exec(e)
+		_, err := tx.Exec(e)
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 	}
 
-	if err := tx.Commit(); err != nil {
-		log.Fatal(err)
+	if err = tx.Commit(); err != nil {
+		return err
 	}
+	return nil
 }
+
+func (m *Repository) OpenConn() error {
+	conn := fmt.Sprintf("%s:%s@%s(%s:%d)/%s?parseTime=true", USERNAME, PASSWORD, NETWORK, SERVER, PORT, DATABASE)
+	db, err := sql.Open("mysql", conn)
+	if err != nil {
+		return err
+	}
+	db.SetMaxOpenConns(10)
+	db.SetMaxIdleConns(10)
+
+	if err := db.Ping(); err != nil {
+		return err
+	}
+
+	m.db = db
+
+	err = m.initialize()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *Repository) CloseConn() error {
+	m.db.Close()
+	return nil
+}
+
+// func init() {
+// 	conn := fmt.Sprintf("%s:%s@%s(%s:%d)/%s?parseTime=true", USERNAME, PASSWORD, NETWORK, SERVER, PORT, DATABASE)
+// 	db, err := sql.Open("mysql", conn)
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+
+// 	db.SetMaxOpenConns(10)
+// 	db.SetMaxIdleConns(10)
+
+// 	if err = db.Ping(); err != nil {
+// 		log.Fatal(err)
+// 	}
+
+// 	tx, err := db.BeginTx(context.TODO(), nil)
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+// 	defer tx.Rollback()
+
+// 	for _, e := range schema {
+// 		_, err := db.Exec(e)
+// 		if err != nil {
+// 			log.Fatal(err)
+// 		}
+// 	}
+
+// 	if err := tx.Commit(); err != nil {
+// 		log.Fatal(err)
+// 	}
+// }

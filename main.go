@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
@@ -106,6 +105,7 @@ func createAppointments(c echo.Context) error {
 		return c.JSON(http.StatusConflict, AppointmentsResponse{Status: ConflictResponse, Message: errMessage})
 	}
 	return c.JSON(http.StatusOK, AppointmentsResponse{Status: SuccessResponse, Message: successMessage})
+
 }
 
 func searchAppointments(c echo.Context) error {
@@ -173,16 +173,13 @@ func main() {
 	//
 
 	//Mysql database
-	conn := fmt.Sprintf("%s:%s@%s(%s:%d)/%s?parseTime=true", USERNAME, PASSWORD, NETWORK, SERVER, PORT, DATABASE)
-	dbMysql, err := sql.Open("mysql", conn)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer dbMysql.Close()
+	// conn := fmt.Sprintf("%s:%s@%s(%s:%d)/%s?parseTime=true", USERNAME, PASSWORD, NETWORK, SERVER, PORT, DATABASE)
+	// dbMysql, err := sql.Open("mysql", conn)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
 
-	if err = dbMysql.Ping(); err != nil {
-		log.Fatal(err)
-	}
+	// defer dbMysql.Close()
 	//
 
 	e := echo.New()
