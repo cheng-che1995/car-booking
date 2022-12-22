@@ -47,6 +47,8 @@ var users map[string]string = map[string]string{
 	"wilson": "1234",
 }
 
+var msyqlRepo Repository
+
 func showUsers(c echo.Context) error {
 	var account []string
 	for u := range users {
@@ -96,7 +98,6 @@ func createAppointments(c echo.Context) error {
 	successMessage := fmt.Sprintf("預約成功！%s，您的預約日期為： %s", username, t.Format("2006-01-02"))
 	//TODO: Put this elsewhere
 	br := BoltRepository{dbPath: "car-booking.db"}
-
 	selectAppointments := Appointment{
 		Username: username,
 		Date:     t,
@@ -106,6 +107,21 @@ func createAppointments(c echo.Context) error {
 	}
 	return c.JSON(http.StatusOK, AppointmentsResponse{Status: SuccessResponse, Message: successMessage})
 
+}
+func createAppointmentsByMysql(c echo.Context) error {
+	token := c.Get("token").(*jwt.Token)
+	claims := token.Claims.(*jwtCustomClaims)
+	username := claims.Name
+	selectedDate := c.FormValue("selectedDate")
+
+	errMessage := fmt.Sprintf("%s，此日期已被預訂，請您重新選擇其他日期！", username)
+	successMessage := fmt.Sprintf("預約成功！%s，您的預約日期為： %s", username, selectedDate)
+
+	//TODO: Put this elsewhere
+	if err := msyqlRepo.Create(username, "that car", selectedDate); err != nil {
+		return c.JSON(http.StatusConflict, AppointmentsResponse{Status: ConflictResponse, Message: errMessage})
+	}
+	return c.JSON(http.StatusOK, AppointmentsResponse{Status: SuccessResponse, Message: successMessage})
 }
 
 func searchAppointments(c echo.Context) error {
@@ -173,19 +189,14 @@ func main() {
 	//
 
 	//Mysql database
-	// conn := fmt.Sprintf("%s:%s@%s(%s:%d)/%s?parseTime=true", USERNAME, PASSWORD, NETWORK, SERVER, PORT, DATABASE)
-	// dbMysql, err := sql.Open("mysql", conn)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-
-	// defer dbMysql.Close()
-	//
+	msyqlRepo.OpenConn()
+	defer msyqlRepo.CloseConn()
 
 	e := echo.New()
 	e.POST("/login", login)
 	e.GET("/users", showUsers)
 	b := e.Group("/booking")
+	m := b.Group("/mysqlbooking")
 	b.Use(middleware.JWTWithConfig(middleware.JWTConfig{
 		Claims:     &jwtCustomClaims{},
 		SigningKey: []byte("secret"),
@@ -197,6 +208,11 @@ func main() {
 	b.POST("/appointments", createAppointments)
 	b.GET("/appointments", searchAppointments)
 	b.DELETE("/appointments", cancelAppointments)
+	//mysql part
+	m.POST("/appointments", createAppointmentsByMysql)
+	m.GET("/appointments", searchAppointments)
+	m.DELETE("/appointments", cancelAppointments)
+	//
 	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
 		Format:           "time=${time_custom}, status=${status}, method=${method}, uri=${uri}\nerror:{${error}}\n",
 		CustomTimeFormat: "2006-01-02 15:04:05",
