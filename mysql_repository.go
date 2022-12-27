@@ -129,3 +129,7 @@ func (m *Repository) Create(username string, item string, orderTime string) erro
 	}
 	return nil
 }
+
+func (m *Repository) Search() error {
+
+}
