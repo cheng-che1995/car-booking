@@ -113,12 +113,13 @@ func createAppointmentsByMysql(c echo.Context) error {
 	claims := token.Claims.(*jwtCustomClaims)
 	username := claims.Name
 	selectedDate := c.FormValue("selectedDate")
+	selectedItem := c.FormValue("selectedItem")
 
 	errMessage := fmt.Sprintf("%s，此日期已被預訂，請您重新選擇其他日期！", username)
 	successMessage := fmt.Sprintf("預約成功！%s，您的預約日期為： %s", username, selectedDate)
 
 	//TODO: Put this elsewhere
-	if err := msyqlRepo.Create(username, "that car", selectedDate); err != nil {
+	if err := msyqlRepo.Create(username, selectedItem, selectedDate); err != nil {
 		return c.JSON(http.StatusConflict, AppointmentsResponse{Status: ConflictResponse, Message: errMessage})
 	}
 	return c.JSON(http.StatusOK, AppointmentsResponse{Status: SuccessResponse, Message: successMessage})

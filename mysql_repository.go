@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -30,10 +29,10 @@ var schema = []string{
 		PRIMARY KEY (id)
 		)`,
 	`CREATE TABLE IF NOT EXISTS appointments(
-			id INT NOT NULL AUTO_INCREMENT,
+			id INT NOT NULL,
 			parant_uuid VARCHAR(36) NOT NULL,
 			item VARCHAR(100) NOT NULL DEFAULT '',
-			order_time DATETIME NOT NULL,
+			order_at DATETIME NOT NULL,
 			create_by VARCHAR(100) NOT NULL DEFAULT '',
 			create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			PRIMARY KEY (id),
@@ -111,25 +110,44 @@ func (m *Repository) Create(username string, item string, orderTime string) erro
 	}
 	defer tx.Rollback()
 
-	if row := m.db.QueryRow("SELECT * FROM users NATRUAL JOIN appointments WHERE create_by = ? AND item = ? AND order_time = ?", username, item, orderTime); row == nil {
-		return errors.New(ConflictResponse)
-	}
-
-	_, err = m.db.Exec("INSERT INTO users(uuid, username) VALUE (?,?)", uuid.NewV4(), username)
+	stmt1, err := m.db.Prepare("INSERT users SET uuid=?, username=?")
 	if err != nil {
 		return err
 	}
 
-	_, err = m.db.Exec("INSERT INTO appointments (item, order_time, create_by) VALUE (?,?,?)", item, orderTime, username)
+	stmt2, err := m.db.Prepare("INSERT appointments SET id=?, item=?, order_at=?, create_by=?")
 	if err != nil {
 		return err
 	}
+
+	res, err := stmt1.Exec(uuid.NewV4(), username)
+	if err != nil {
+		return err
+	}
+
+	id, _ := res.LastInsertId()
+
+	res2, err := stmt2.Exec(id, item, orderTime, username)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("res2:%s", res2)
+
+	row := m.db.QueryRow("SELECT * FROM users NATRUAL JOIN appointments WHERE create_by = ? AND item = ? AND order_at = ?", username, item, orderTime)
+	fmt.Printf("row:%d", row)
+
 	if err = tx.Commit(); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (m *Repository) Search() error {
+// func (m *Repository) Search() error {
+// 	rows, err := m.db.Exec("SELECT u.id, u.uuid, a.item, a.order_time, a.create_by, a.create_time FROM users AS u JOIN appointments AS a ON u.id = a.id;")
+// 	if err != nil {
+// 		return err
+// 	}
+// 	return nil
+// }
 
-}
+//select u.id, u.uuid, a.item, a.order_at, a.create_by, a.create_time from users as u join appointments as a on u.id = a.id;
