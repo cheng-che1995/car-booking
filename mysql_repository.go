@@ -23,20 +23,17 @@ const (
 var schema = []string{
 	`CREATE TABLE IF NOT EXISTS users(
 		id INT NOT NULL AUTO_INCREMENT,
-		uuid VARCHAR(36) NOT NULL,
 		username VARCHAR(100) NOT NULL DEFAULT '',
-		UNIQUE (uuid),
 		PRIMARY KEY (id)
 		)`,
 	`CREATE TABLE IF NOT EXISTS appointments(
 			id INT NOT NULL,
-			parant_uuid VARCHAR(36) NOT NULL,
+			uuid VARCHAR(36) NOT NULL,
 			item VARCHAR(100) NOT NULL DEFAULT '',
 			order_at DATETIME NOT NULL,
 			create_by VARCHAR(100) NOT NULL DEFAULT '',
 			create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			PRIMARY KEY (id),
-			FOREIGN KEY(parant_uuid) REFERENCES users (uuid)
+			FOREIGN KEY(id) REFERENCES users (id)
 			)`,
 }
 
@@ -66,6 +63,7 @@ func (m *Repository) initialize() error {
 	for _, e := range schema {
 		_, err := tx.Exec(e)
 		if err != nil {
+			fmt.Printf("Range schema failed: %v\n", err)
 			return err
 		}
 	}
@@ -80,12 +78,14 @@ func (m *Repository) OpenConn() error {
 	conn := fmt.Sprintf("%s:%s@%s(%s:%d)/%s?parseTime=true", USERNAME, PASSWORD, NETWORK, SERVER, PORT, DATABASE)
 	db, err := sql.Open("mysql", conn)
 	if err != nil {
+		fmt.Printf("OpenConn failed: %v\n", err)
 		return err
 	}
 	db.SetMaxOpenConns(10)
 	db.SetMaxIdleConns(10)
 
 	if err := db.Ping(); err != nil {
+		fmt.Printf("Ping failed: %v\n", err)
 		return err
 	}
 
@@ -93,6 +93,7 @@ func (m *Repository) OpenConn() error {
 
 	err = m.initialize()
 	if err != nil {
+		fmt.Printf("init failed: %v\n", err)
 		return err
 	}
 	return nil
@@ -106,37 +107,55 @@ func (m *Repository) CloseConn() error {
 func (m *Repository) Create(username string, item string, orderTime string) error {
 	tx, err := m.db.BeginTx(context.TODO(), nil)
 	if err != nil {
+		fmt.Printf("BeginTx failed: %v\n", err)
 		return err
 	}
 	defer tx.Rollback()
 
-	stmt1, err := m.db.Prepare("INSERT users SET uuid=?, username=?")
+	// TODO: Make sure the order won't conflict
+	row, err := tx.Query("SELECT * FROM appointments WHERE item = ? AND order_at = ?", item, orderTime)
 	if err != nil {
+		fmt.Printf("check exsits part failed: %v\n", err)
+		return err
+	}
+	if row.Next() {
+		//exsits
+		return ErrConflict
+	}
+
+	stmt1, err := tx.Prepare("INSERT users SET username=?")
+	if err != nil {
+		fmt.Printf("Prepare insert table users failed: %v\n", err)
 		return err
 	}
 
-	stmt2, err := m.db.Prepare("INSERT appointments SET id=?, item=?, order_at=?, create_by=?")
+	stmt2, err := tx.Prepare("INSERT appointments SET id=?, uuid=?, item=?, order_at=?, create_by=?")
 	if err != nil {
+		fmt.Printf("Prepare insert table appointments failed: %v\n", err)
 		return err
 	}
 
-	res, err := stmt1.Exec(uuid.NewV4(), username)
+	res, err := stmt1.Exec(username)
 	if err != nil {
+		fmt.Printf("Insert table users failed: %v\n", err)
 		return err
 	}
 
-	id, _ := res.LastInsertId()
-
-	res2, err := stmt2.Exec(id, item, orderTime, username)
+	id, err := res.LastInsertId()
 	if err != nil {
+		fmt.Printf("Get last insert id failed: %v\n", err)
 		return err
 	}
-	fmt.Printf("res2:%s", res2)
 
-	row := m.db.QueryRow("SELECT * FROM users NATRUAL JOIN appointments WHERE create_by = ? AND item = ? AND order_at = ?", username, item, orderTime)
-	fmt.Printf("row:%d", row)
+	res2, err := stmt2.Exec(id, uuid.NewV4(), item, orderTime, username)
+	if err != nil {
+		fmt.Printf("Insert table appointments failed: %v\n", err)
+		return err
+	}
+	res2.RowsAffected()
 
 	if err = tx.Commit(); err != nil {
+		fmt.Printf("tx.Commit failed: %v\n", err)
 		return err
 	}
 	return nil

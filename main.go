@@ -197,7 +197,6 @@ func main() {
 	e.POST("/login", login)
 	e.GET("/users", showUsers)
 	b := e.Group("/booking")
-	m := b.Group("/mysqlbooking")
 	b.Use(middleware.JWTWithConfig(middleware.JWTConfig{
 		Claims:     &jwtCustomClaims{},
 		SigningKey: []byte("secret"),
@@ -207,12 +206,10 @@ func main() {
 		},
 	}))
 	b.POST("/appointments", createAppointments)
+	b.POST("/appointment", createAppointmentsByMysql)
 	b.GET("/appointments", searchAppointments)
 	b.DELETE("/appointments", cancelAppointments)
-	//mysql part
-	m.POST("/appointments", createAppointmentsByMysql)
-	m.GET("/appointments", searchAppointments)
-	m.DELETE("/appointments", cancelAppointments)
+
 	//
 	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
 		Format:           "time=${time_custom}, status=${status}, method=${method}, uri=${uri}\nerror:{${error}}\n",
