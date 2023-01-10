@@ -47,7 +47,7 @@ var users map[string]string = map[string]string{
 	"wilson": "1234",
 }
 
-var msyqlRepo Repository
+var mysqlRepo Repository
 
 func showUsers(c echo.Context) error {
 	var account []string
@@ -106,31 +106,15 @@ func createAppointments(c echo.Context) error {
 		return c.JSON(http.StatusConflict, AppointmentsResponse{Status: ConflictResponse, Message: errMessage})
 	}
 	return c.JSON(http.StatusOK, AppointmentsResponse{Status: SuccessResponse, Message: successMessage})
-
-}
-func createAppointmentsByMysql(c echo.Context) error {
-	token := c.Get("token").(*jwt.Token)
-	claims := token.Claims.(*jwtCustomClaims)
-	username := claims.Name
-	selectedDate := c.FormValue("selectedDate")
-	selectedItem := c.FormValue("selectedItem")
-
-	errMessage := fmt.Sprintf("%s，此日期已被預訂，請您重新選擇其他日期！", username)
-	successMessage := fmt.Sprintf("預約成功！%s，您的預約日期為： %s", username, selectedDate)
-
-	//TODO: Put this elsewhere
-	if err := msyqlRepo.Create(username, selectedItem, selectedDate); err != nil {
-		return c.JSON(http.StatusConflict, AppointmentsResponse{Status: ConflictResponse, Message: errMessage})
-	}
-	return c.JSON(http.StatusOK, AppointmentsResponse{Status: SuccessResponse, Message: successMessage})
 }
 
 func searchAppointments(c echo.Context) error {
 	filterByUsername := c.FormValue("filterByUsername")
 	filterByDateStart := c.FormValue("filterByDateStart")
 	filterByDateEnd := c.FormValue("filterByDateEnd")
+
 	br := BoltRepository{dbPath: "car-booking.db"}
-	//TODO:
+	//TODO: 補上filterByItem
 	selectedFilter := SearchFilter{
 		Username:  &filterByUsername,
 		DateStart: &filterByDateStart,
@@ -173,6 +157,42 @@ func cancelAppointments(c echo.Context) error {
 
 }
 
+func createAppointmentsByMysql(c echo.Context) error {
+	token := c.Get("token").(*jwt.Token)
+	claims := token.Claims.(*jwtCustomClaims)
+	username := claims.Name
+	selectedDate := c.FormValue("selectedDate")
+	selectedItem := c.FormValue("selectedItem")
+
+	errMessage := fmt.Sprintf("%s，此日期已被預訂，請您重新選擇其他日期！", username)
+	successMessage := fmt.Sprintf("預約成功！%s，您的預約日期為： %s", username, selectedDate)
+
+	if err := mysqlRepo.Create(username, selectedItem, selectedDate); err != nil {
+		return c.JSON(http.StatusConflict, AppointmentsResponse{Status: ConflictResponse, Message: errMessage})
+	}
+	return c.JSON(http.StatusOK, AppointmentsResponse{Status: SuccessResponse, Message: successMessage})
+}
+
+func searchAppointmentsByMysql(c echo.Context) error {
+	filterByUsername := c.FormValue("filterByUsername")
+	filterByItem := c.FormValue("filterByItem")
+	filterByDateStart := c.FormValue("filterByDateStart")
+	filterByDateEnd := c.FormValue("filterByDateEnd")
+
+	selectedFilter := SearchFilter{
+		Username:  &filterByUsername,
+		Item:      &filterByItem,
+		DateStart: &filterByDateStart,
+		DateEnd:   &filterByDateEnd,
+	}
+
+	FilteredAppointments, err := mysqlRepo.Search(&selectedFilter)
+	if err != nil {
+		return err
+	}
+	return c.JSON(http.StatusOK, AppointmentsResponse{Status: SuccessResponse, Appointments: FilteredAppointments})
+}
+
 func main() {
 	//Bolt database
 	dbBolt, err := bolt.Open("car-booking.db", 0600, &bolt.Options{Timeout: 1 * time.Second})
@@ -190,8 +210,8 @@ func main() {
 	//
 
 	//Mysql database
-	msyqlRepo.OpenConn()
-	defer msyqlRepo.CloseConn()
+	mysqlRepo.OpenConn()
+	defer mysqlRepo.CloseConn()
 
 	e := echo.New()
 	e.POST("/login", login)
@@ -206,11 +226,13 @@ func main() {
 		},
 	}))
 	b.POST("/appointments", createAppointments)
-	b.POST("/appointment", createAppointmentsByMysql)
 	b.GET("/appointments", searchAppointments)
 	b.DELETE("/appointments", cancelAppointments)
 
-	//
+	//TODO: separate new route for mysql repo.
+	b.POST("/appointment", createAppointmentsByMysql)
+	b.GET("/appointment", searchAppointmentsByMysql)
+
 	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
 		Format:           "time=${time_custom}, status=${status}, method=${method}, uri=${uri}\nerror:{${error}}\n",
 		CustomTimeFormat: "2006-01-02 15:04:05",

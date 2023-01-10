@@ -12,6 +12,7 @@ var (
 
 type SearchFilter struct {
 	Username  *string
+	Item      *string
 	DateStart *string
 	DateEnd   *string
 }

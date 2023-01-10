@@ -123,13 +123,13 @@ func (m *Repository) Create(username string, item string, orderTime string) erro
 		return ErrConflict
 	}
 
-	stmt1, err := tx.Prepare("INSERT users SET username=?")
+	stmt1, err := tx.Prepare("INSERT users SET username = ?")
 	if err != nil {
 		fmt.Printf("Prepare insert table users failed: %v\n", err)
 		return err
 	}
 
-	stmt2, err := tx.Prepare("INSERT appointments SET id=?, uuid=?, item=?, order_at=?, create_by=?")
+	stmt2, err := tx.Prepare("INSERT appointments SET id = ?, uuid = ?, item = ?, order_at = ?, create_by= ?")
 	if err != nil {
 		fmt.Printf("Prepare insert table appointments failed: %v\n", err)
 		return err
@@ -170,3 +170,19 @@ func (m *Repository) Create(username string, item string, orderTime string) erro
 // }
 
 //select u.id, u.uuid, a.item, a.order_at, a.create_by, a.create_time from users as u join appointments as a on u.id = a.id;
+
+// func (m *Repository) Search(username string, item string, dateStart string, dateEnd string) ([]Appointment, error) {
+func (m *Repository) Search(a *SearchFilter) ([]Appointment, error) {
+	rows, err := m.db.Query("SELECT * FROM appointments WHERE item = ? AND order_by = ?", a.Item, a.Username)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	// for rows.Next() {
+	// 	err := rows.Scan(&id, &name, &quantity)
+	// 	checkError(err)
+	// 	fmt.Printf("Data row = (%d, %s, %d)\n", id, name, quantity)
+	// }
+
+	return nil, nil
+}
