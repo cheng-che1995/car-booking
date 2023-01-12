@@ -22,3 +22,10 @@ type AppointmentRepository interface {
 	Search(*SearchFilter) ([]Appointment, error)
 	Delete(*Appointment) error
 }
+
+// TODO: 找其他地方放
+func checkEmptyString(a *string) {
+	if len(*a) > 0 {
+		a = nil
+	}
+}

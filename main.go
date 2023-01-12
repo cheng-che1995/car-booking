@@ -28,6 +28,11 @@ type AppointmentsResponse struct {
 	Status       string        `json:"status"`
 	Message      string        `json:"message"`
 }
+type NewAppointmentsResponse struct {
+	NewAppointments []NewAppointment `json:"appointments"`
+	Status          string           `json:"status"`
+	Message         string           `json:"message"`
+}
 
 const (
 	SuccessResponse      string = "success"
@@ -38,6 +43,11 @@ const (
 
 type Appointment struct {
 	Username string
+	Date     time.Time
+}
+type NewAppointment struct {
+	Username string
+	Item     string
 	Date     time.Time
 }
 
@@ -190,7 +200,7 @@ func searchAppointmentsByMysql(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	return c.JSON(http.StatusOK, AppointmentsResponse{Status: SuccessResponse, Appointments: FilteredAppointments})
+	return c.JSON(http.StatusOK, NewAppointmentsResponse{Status: SuccessResponse, NewAppointments: FilteredAppointments})
 }
 
 func main() {

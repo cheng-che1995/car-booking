@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 	uuid "github.com/satori/go.uuid"
@@ -161,28 +162,45 @@ func (m *Repository) Create(username string, item string, orderTime string) erro
 	return nil
 }
 
-// func (m *Repository) Search() error {
-// 	rows, err := m.db.Exec("SELECT u.id, u.uuid, a.item, a.order_time, a.create_by, a.create_time FROM users AS u JOIN appointments AS a ON u.id = a.id;")
-// 	if err != nil {
-// 		return err
-// 	}
-// 	return nil
-// }
-
-//select u.id, u.uuid, a.item, a.order_at, a.create_by, a.create_time from users as u join appointments as a on u.id = a.id;
-
 // func (m *Repository) Search(username string, item string, dateStart string, dateEnd string) ([]Appointment, error) {
-func (m *Repository) Search(a *SearchFilter) ([]Appointment, error) {
+func (m *Repository) Search(a *SearchFilter) ([]NewAppointment, error) {
+	var (
+		FilteredAppointments []NewAppointment
+		dateStart            time.Time
+		dateEnd              time.Time
+		username             string
+		item                 string
+		t                    time.Time
+	)
+	checkEmptyString(a.Username)
+	checkEmptyString(a.Item)
+	checkEmptyString(a.DateStart)
+	checkEmptyString(a.DateEnd)
+
+	if a.DateStart != nil {
+		dateStart, _ = time.Parse("2006-01-02", *a.DateStart)
+	}
+	if a.DateEnd != nil {
+		dateEnd, _ = time.Parse("2006-01-02", *a.DateEnd)
+	}
+
 	rows, err := m.db.Query("SELECT * FROM appointments WHERE item = ? AND order_by = ?", a.Item, a.Username)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	// for rows.Next() {
-	// 	err := rows.Scan(&id, &name, &quantity)
-	// 	checkError(err)
-	// 	fmt.Printf("Data row = (%d, %s, %d)\n", id, name, quantity)
-	// }
+	for rows.Next() {
+		err = rows.Scan(&username, &item, &t)
+		if err != nil {
+			fmt.Printf("Scan failed: %v\n", err)
+			return nil, err
+		}
+		if (a.Username == nil || *a.Username == username) && (a.Item == nil || *a.Item == item) &&
+			(a.DateStart == nil || (dateStart.Before(t) || dateStart.Equal(t))) &&
+			(a.DateEnd == nil || (dateEnd.After(t)) || dateEnd.Equal(t)) {
+			FilteredAppointments = append(FilteredAppointments, NewAppointment{Username: username, Item: item, Date: t})
+		}
+	}
 
-	return nil, nil
+	return FilteredAppointments, nil
 }
