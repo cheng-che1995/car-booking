@@ -162,20 +162,23 @@ func (m *Repository) Create(username string, item string, orderTime string) erro
 	return nil
 }
 
-// func (m *Repository) Search(username string, item string, dateStart string, dateEnd string) ([]Appointment, error) {
 func (m *Repository) Search(a *SearchFilter) ([]NewAppointment, error) {
 	var (
 		FilteredAppointments []NewAppointment
 		dateStart            time.Time
 		dateEnd              time.Time
-		username             string
+		id                   int
+		uuid                 string
 		item                 string
-		t                    time.Time
+		orderAt              time.Time
+		createBy             string
+		createTime           time.Time
 	)
 	checkEmptyString(a.Username)
 	checkEmptyString(a.Item)
 	checkEmptyString(a.DateStart)
 	checkEmptyString(a.DateEnd)
+	fmt.Printf("a.DateEnd: %v\n", *a.DateEnd)
 
 	if a.DateStart != nil {
 		dateStart, _ = time.Parse("2006-01-02", *a.DateStart)
@@ -184,23 +187,24 @@ func (m *Repository) Search(a *SearchFilter) ([]NewAppointment, error) {
 		dateEnd, _ = time.Parse("2006-01-02", *a.DateEnd)
 	}
 
-	rows, err := m.db.Query("SELECT * FROM appointments WHERE item = ? AND order_by = ?", a.Item, a.Username)
+	rows, err := m.db.Query("SELECT * FROM appointments")
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	for rows.Next() {
-		err = rows.Scan(&username, &item, &t)
+		err = rows.Scan(&id, &uuid, &item, &orderAt, &createBy, &createTime)
 		if err != nil {
 			fmt.Printf("Scan failed: %v\n", err)
 			return nil, err
 		}
-		if (a.Username == nil || *a.Username == username) && (a.Item == nil || *a.Item == item) &&
-			(a.DateStart == nil || (dateStart.Before(t) || dateStart.Equal(t))) &&
-			(a.DateEnd == nil || (dateEnd.After(t)) || dateEnd.Equal(t)) {
-			FilteredAppointments = append(FilteredAppointments, NewAppointment{Username: username, Item: item, Date: t})
+		if (*a.Username == "" || *a.Username == createBy) &&
+			(*a.Item == "" || *a.Item == item) &&
+			(dateStart.Before(orderAt) || dateStart.Equal(orderAt) || *a.DateStart == "") &&
+			(dateEnd.After(orderAt) || dateEnd.Equal(orderAt) || *a.DateEnd == "") {
+			FilteredAppointments = append(FilteredAppointments, NewAppointment{Username: createBy, Item: item, Date: orderAt})
 		}
+		fmt.Printf("篩選清單：%v\n", FilteredAppointments)
 	}
-
 	return FilteredAppointments, nil
 }
