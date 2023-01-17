@@ -28,6 +28,11 @@ type AppointmentsResponse struct {
 	Status       string        `json:"status"`
 	Message      string        `json:"message"`
 }
+type NewAppointmentsResponse struct {
+	NewAppointments []NewAppointment `json:"appointments"`
+	Status          string           `json:"status"`
+	Message         string           `json:"message"`
+}
 
 const (
 	SuccessResponse      string = "success"
@@ -40,12 +45,19 @@ type Appointment struct {
 	Username string
 	Date     time.Time
 }
+type NewAppointment struct {
+	Username string
+	Item     string
+	Date     time.Time
+}
 
 // type CustomFunc func(echo.Context) error
 var users map[string]string = map[string]string{
 	"tony":   "4321",
 	"wilson": "1234",
 }
+
+var mysqlRepo Repository
 
 func showUsers(c echo.Context) error {
 	var account []string
@@ -96,7 +108,6 @@ func createAppointments(c echo.Context) error {
 	successMessage := fmt.Sprintf("預約成功！%s，您的預約日期為： %s", username, t.Format("2006-01-02"))
 	//TODO: Put this elsewhere
 	br := BoltRepository{dbPath: "car-booking.db"}
-
 	selectAppointments := Appointment{
 		Username: username,
 		Date:     t,
@@ -111,8 +122,9 @@ func searchAppointments(c echo.Context) error {
 	filterByUsername := c.FormValue("filterByUsername")
 	filterByDateStart := c.FormValue("filterByDateStart")
 	filterByDateEnd := c.FormValue("filterByDateEnd")
+
 	br := BoltRepository{dbPath: "car-booking.db"}
-	//TODO:
+	//TODO: 補上filterByItem
 	selectedFilter := SearchFilter{
 		Username:  &filterByUsername,
 		DateStart: &filterByDateStart,
@@ -155,32 +167,91 @@ func cancelAppointments(c echo.Context) error {
 
 }
 
+func createAppointmentsByMysql(c echo.Context) error {
+	token := c.Get("token").(*jwt.Token)
+	claims := token.Claims.(*jwtCustomClaims)
+	username := claims.Name
+	selectedDate := c.FormValue("selectedDate")
+	selectedItem := c.FormValue("selectedItem")
+
+	errMessage := fmt.Sprintf("%s，此日期已被預訂，請您重新選擇其他日期！", username)
+	successMessage := fmt.Sprintf("預約成功！%s，您的預約日期為： %s", username, selectedDate)
+
+	if err := mysqlRepo.Create(username, selectedItem, selectedDate); err != nil {
+		return c.JSON(http.StatusConflict, AppointmentsResponse{Status: ConflictResponse, Message: errMessage})
+	}
+	return c.JSON(http.StatusOK, AppointmentsResponse{Status: SuccessResponse, Message: successMessage})
+}
+
+func searchAppointmentsByMysql(c echo.Context) error {
+	filterByUsername := c.FormValue("filterByUsername")
+	filterByItem := c.FormValue("filterByItem")
+	filterByDateStart := c.FormValue("filterByDateStart")
+	filterByDateEnd := c.FormValue("filterByDateEnd")
+
+	selectedFilter := SearchFilter{
+		Username:  &filterByUsername,
+		Item:      &filterByItem,
+		DateStart: &filterByDateStart,
+		DateEnd:   &filterByDateEnd,
+	}
+
+	FilteredAppointments, err := mysqlRepo.Search(&selectedFilter)
+	if err != nil {
+		return err
+	}
+	return c.JSON(http.StatusOK, NewAppointmentsResponse{Status: SuccessResponse, NewAppointments: FilteredAppointments})
+}
+
+func cancelAppointmentsByMysql(c echo.Context) error {
+	token := c.Get("token").(*jwt.Token)
+	claims := token.Claims.(*jwtCustomClaims)
+	username := claims.Name
+	selectedDate := c.FormValue("selectedDate")
+	selectedItem := c.FormValue("selectedItem")
+	// t, err := time.Parse("2006-01-02", selectedDate)
+	// if err != nil {
+	// 	return err
+	// }
+	successMessage := fmt.Sprintf("取消成功！%s，您已將 %s預約取消！", username, selectedDate)
+	unauthorizedMessage := fmt.Sprintf("此%s日期不屬於%s您的預約！", selectedDate, username)
+	notFoundMessage := fmt.Sprintf("查無此預約!%s請您重新選擇日期！", username)
+
+	if err := mysqlRepo.Delete(username, selectedItem, selectedDate); err == nil {
+		return c.JSON(http.StatusOK, AppointmentsResponse{Status: SuccessResponse, Message: successMessage})
+	} else if err == ErrNotFound {
+		return c.JSON(http.StatusNotFound, AppointmentsResponse{Status: NotFoundResponse, Message: notFoundMessage})
+	} else if err == ErrUnauthorized {
+		return c.JSON(http.StatusUnauthorized, AppointmentsResponse{Status: UnauthorizedResponse, Message: unauthorizedMessage})
+	}
+	return nil
+}
+
 func main() {
-	// Create a db named "car-booking.db" in current directory.
-	// It will be created if doesn't exsit.
-	// And keep it connected.
-	db, err := bolt.Open("car-booking.db", 0600, &bolt.Options{Timeout: 1 * time.Second})
+	//Bolt database
+	dbBolt, err := bolt.Open("car-booking.db", 0600, &bolt.Options{Timeout: 1 * time.Second})
 	if err != nil {
 		log.Fatal(err)
 	}
-	// Create a bucket(table) named "appointments".
-	db.Update(func(tx *bolt.Tx) error {
+	dbBolt.Update(func(tx *bolt.Tx) error {
 		_, err := tx.CreateBucketIfNotExists([]byte("Appointments"))
 		if err != nil {
 			return fmt.Errorf("create bucket err: %s", err)
 		}
 		return nil
 	})
-	// Close the connection.
-	db.Close()
+	dbBolt.Close()
+	//
 
-	// var e *echo.Echo // = echo.New()
+	//Mysql database
+	mysqlRepo.OpenConn()
+	defer mysqlRepo.CloseConn()
+
 	e := echo.New()
 	e.POST("/login", login)
 	e.GET("/users", showUsers)
 	b := e.Group("/booking")
 	b.Use(middleware.JWTWithConfig(middleware.JWTConfig{
-		// Claims:     &jwtCustomClaims{},
 		Claims:     &jwtCustomClaims{},
 		SigningKey: []byte("secret"),
 		ContextKey: "token",
@@ -191,6 +262,12 @@ func main() {
 	b.POST("/appointments", createAppointments)
 	b.GET("/appointments", searchAppointments)
 	b.DELETE("/appointments", cancelAppointments)
+
+	//TODO: separate new route for mysql repo.
+	b.POST("/appointment", createAppointmentsByMysql)
+	b.GET("/appointment", searchAppointmentsByMysql)
+	b.DELETE("/appointment", cancelAppointmentsByMysql)
+
 	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
 		Format:           "time=${time_custom}, status=${status}, method=${method}, uri=${uri}\nerror:{${error}}\n",
 		CustomTimeFormat: "2006-01-02 15:04:05",
