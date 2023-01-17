@@ -203,6 +203,30 @@ func searchAppointmentsByMysql(c echo.Context) error {
 	return c.JSON(http.StatusOK, NewAppointmentsResponse{Status: SuccessResponse, NewAppointments: FilteredAppointments})
 }
 
+func cancelAppointmentsByMysql(c echo.Context) error {
+	token := c.Get("token").(*jwt.Token)
+	claims := token.Claims.(*jwtCustomClaims)
+	username := claims.Name
+	selectedDate := c.FormValue("selectedDate")
+	selectedItem := c.FormValue("selectedItem")
+	// t, err := time.Parse("2006-01-02", selectedDate)
+	// if err != nil {
+	// 	return err
+	// }
+	successMessage := fmt.Sprintf("取消成功！%s，您已將 %s預約取消！", username, selectedDate)
+	unauthorizedMessage := fmt.Sprintf("此%s日期不屬於%s您的預約！", selectedDate, username)
+	notFoundMessage := fmt.Sprintf("查無此預約!%s請您重新選擇日期！", username)
+
+	if err := mysqlRepo.Delete(username, selectedItem, selectedDate); err == nil {
+		return c.JSON(http.StatusOK, AppointmentsResponse{Status: SuccessResponse, Message: successMessage})
+	} else if err == ErrNotFound {
+		return c.JSON(http.StatusNotFound, AppointmentsResponse{Status: NotFoundResponse, Message: notFoundMessage})
+	} else if err == ErrUnauthorized {
+		return c.JSON(http.StatusUnauthorized, AppointmentsResponse{Status: UnauthorizedResponse, Message: unauthorizedMessage})
+	}
+	return nil
+}
+
 func main() {
 	//Bolt database
 	dbBolt, err := bolt.Open("car-booking.db", 0600, &bolt.Options{Timeout: 1 * time.Second})
@@ -242,6 +266,7 @@ func main() {
 	//TODO: separate new route for mysql repo.
 	b.POST("/appointment", createAppointmentsByMysql)
 	b.GET("/appointment", searchAppointmentsByMysql)
+	b.DELETE("/appointment", cancelAppointmentsByMysql)
 
 	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
 		Format:           "time=${time_custom}, status=${status}, method=${method}, uri=${uri}\nerror:{${error}}\n",

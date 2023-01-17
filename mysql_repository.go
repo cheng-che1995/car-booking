@@ -22,20 +22,20 @@ const (
 )
 
 var schema = []string{
-	`CREATE TABLE IF NOT EXISTS users(
-		id INT NOT NULL AUTO_INCREMENT,
-		username VARCHAR(100) NOT NULL DEFAULT '',
-		PRIMARY KEY (id)
-		)`,
 	`CREATE TABLE IF NOT EXISTS appointments(
-			id INT NOT NULL,
-			uuid VARCHAR(36) NOT NULL,
-			item VARCHAR(100) NOT NULL DEFAULT '',
-			order_at DATETIME NOT NULL,
-			create_by VARCHAR(100) NOT NULL DEFAULT '',
-			create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			FOREIGN KEY(id) REFERENCES users (id)
-			)`,
+		id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+		uuid VARCHAR(36) NOT NULL,
+		item VARCHAR(100) NOT NULL,
+		order_at DATETIME NOT NULL,
+		order_by VARCHAR(100) NOT NULL,
+		create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)`,
+	`CREATE TABLE IF NOT EXISTS users(
+		id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+		appointment_id INT NOT NULL,
+		username VARCHAR(100) NOT NULL,
+		FOREIGN KEY(appointment_id) REFERENCES appointments(id) ON DELETE CASCADE
+		)`,
 }
 
 type Repository struct {
@@ -105,7 +105,7 @@ func (m *Repository) CloseConn() error {
 	return nil
 }
 
-func (m *Repository) Create(username string, item string, orderTime string) error {
+func (m *Repository) Create(username string, item string, date string) error {
 	tx, err := m.db.BeginTx(context.TODO(), nil)
 	if err != nil {
 		fmt.Printf("BeginTx failed: %v\n", err)
@@ -114,7 +114,7 @@ func (m *Repository) Create(username string, item string, orderTime string) erro
 	defer tx.Rollback()
 
 	// TODO: Make sure the order won't conflict
-	row, err := tx.Query("SELECT * FROM appointments WHERE item = ? AND order_at = ?", item, orderTime)
+	row, err := tx.Query("SELECT * FROM appointments WHERE item = ? AND order_at = ?", item, date)
 	if err != nil {
 		fmt.Printf("check exsits part failed: %v\n", err)
 		return err
@@ -124,34 +124,27 @@ func (m *Repository) Create(username string, item string, orderTime string) erro
 		return ErrConflict
 	}
 
-	stmt1, err := tx.Prepare("INSERT users SET username = ?")
-	if err != nil {
-		fmt.Printf("Prepare insert table users failed: %v\n", err)
-		return err
-	}
-
-	stmt2, err := tx.Prepare("INSERT appointments SET id = ?, uuid = ?, item = ?, order_at = ?, create_by= ?")
+	stmt1, err := tx.Prepare("INSERT appointments SET uuid = ?, item = ?, order_at = ?, order_by= ?")
 	if err != nil {
 		fmt.Printf("Prepare insert table appointments failed: %v\n", err)
 		return err
 	}
-
-	res, err := stmt1.Exec(username)
-	if err != nil {
-		fmt.Printf("Insert table users failed: %v\n", err)
-		return err
-	}
-
-	id, err := res.LastInsertId()
-	if err != nil {
-		fmt.Printf("Get last insert id failed: %v\n", err)
-		return err
-	}
-
-	res2, err := stmt2.Exec(id, uuid.NewV4(), item, orderTime, username)
+	res1, err := stmt1.Exec(uuid.NewV4(), item, date, username)
 	if err != nil {
 		fmt.Printf("Insert table appointments failed: %v\n", err)
 		return err
+	}
+
+	id, _ := res1.LastInsertId()
+
+	stmt2, err := tx.Prepare("INSERT users SET appointment_id = ?, username = ?")
+	if err != nil {
+		fmt.Printf("Prepare insert table users failed: %v\n", err)
+		return err
+	}
+	res2, err := stmt2.Exec(id, username)
+	if err != nil {
+		fmt.Printf("Insert table users failed: %v\n", err)
 	}
 	res2.RowsAffected()
 
@@ -178,7 +171,6 @@ func (m *Repository) Search(a *SearchFilter) ([]NewAppointment, error) {
 	checkEmptyString(a.Item)
 	checkEmptyString(a.DateStart)
 	checkEmptyString(a.DateEnd)
-	fmt.Printf("a.DateEnd: %v\n", *a.DateEnd)
 
 	if a.DateStart != nil {
 		dateStart, _ = time.Parse("2006-01-02", *a.DateStart)
@@ -204,7 +196,44 @@ func (m *Repository) Search(a *SearchFilter) ([]NewAppointment, error) {
 			(dateEnd.After(orderAt) || dateEnd.Equal(orderAt) || *a.DateEnd == "") {
 			FilteredAppointments = append(FilteredAppointments, NewAppointment{Username: createBy, Item: item, Date: orderAt})
 		}
-		fmt.Printf("篩選清單：%v\n", FilteredAppointments)
 	}
 	return FilteredAppointments, nil
+}
+
+func (m *Repository) Delete(username string, item string, date string) error {
+	tx, err := m.db.BeginTx(context.TODO(), nil)
+	if err != nil {
+		fmt.Printf("BeginTx failed: %v\n", err)
+		return err
+	}
+	defer tx.Rollback()
+
+	rows, err := m.db.Query("SELECT * FROM appointments WHERE item = ? AND order_at = ?", item, date)
+	if err != nil {
+		return err
+	}
+	if !rows.Next() {
+		return ErrNotFound
+	}
+	rows2, err := m.db.Query("SELECT * FROM appointments WHERE order_by = ? AND item = ? AND order_at = ?", username, item, date)
+	if err != nil {
+		return err
+	}
+	if !rows2.Next() {
+		return ErrUnauthorized
+	}
+
+	res, err := tx.Exec("DELETE FROM appointments WHERE order_by = ? AND item = ? AND order_at = ?", username, item, date)
+	if err != nil {
+		fmt.Printf("Delete from appointments failed: %v\n", err)
+		return err
+	}
+
+	res.RowsAffected()
+
+	if err = tx.Commit(); err != nil {
+		fmt.Printf("tx.Commit failed: %v\n", err)
+		return err
+	}
+	return nil
 }
