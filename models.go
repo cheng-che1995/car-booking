@@ -5,6 +5,8 @@ import (
 	"encoding"
 	"errors"
 	"time"
+
+	uuid "github.com/satori/go.uuid"
 )
 
 type Appointment struct {
@@ -25,6 +27,10 @@ type User struct {
 	Password string
 }
 
+func (u *User) GenerateUuid() {
+	u.Uuid = uuid.NewV4().String()
+}
+
 func (u User) HashPassword() ([]byte, error) {
 	hash := sha256.New()
 	hash.Write([]byte(u.Password))
@@ -37,4 +43,17 @@ func (u User) HashPassword() ([]byte, error) {
 		return nil, err
 	}
 	return pwd, nil
+}
+
+func (u User) Validate() error {
+	if u.Username == "" {
+		return errors.New("使用者名稱不得為空值！")
+	}
+	if u.Password == "" {
+		return errors.New("密碼不得為空值！")
+	}
+	if u.Uuid == "" {
+		return errors.New("uuid不得為空值！")
+	}
+	return nil
 }

@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"time"
 
@@ -29,7 +28,7 @@ var schema = []string{
 		username VARCHAR(100) NOT NULL,
 		password VARCHAR(255) NOT NULL
 		)`,
-	`CREATE TBALE IF NOT EXISTS cars(
+	`CREATE TABLE IF NOT EXISTS cars(
 		id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 		uuid VARCHAR(36) NOT NULL,
 		plate VARCHAR(12) NOT NULL UNIQUE,
@@ -117,18 +116,20 @@ func (m *Repository) CreateUser(u *User) error {
 	if u == nil {
 		return nil
 	}
-	//TODO: 檢查空字串
-	if u.Username == "" || u.Password == "" {
-		return errors.New("不得為空值")
-	}
+
 	if u.Uuid == "" {
-		u.Uuid = uuid.NewV4().String()
+		u.GenerateUuid()
 	}
+
+	if err := u.Validate(); err != nil {
+		return err
+	}
+
 	pwd, err := u.HashPassword()
 	if err != nil {
 		return err
 	}
-	q := "INSERT INTO users SET username = ?, password = ?, uuid = ?"
+	q := `INSERT INTO users SET username = ?, password = ?, uuid = ?`
 
 	if _, err := m.db.Exec(q, u.Username, pwd, u.Uuid); err != nil {
 		return err
@@ -145,6 +146,17 @@ func (m *Repository) DeleteUser(u *User) error {
 		return err
 	}
 	return nil
+}
+
+func (m *Repository) CreateCar(c *Car) error {
+	if c == nil {
+		return nil
+	}
+
+	q := `INSERT INTO cars SET plate = ?, user_id = (SELECT id FROM users WHERE uuid = ?)`
+
+	// c.Plate
+	// c.UserUuid
 }
 
 func (m *Repository) Create(username string, item string, date string) error {
