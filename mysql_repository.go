@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -22,19 +23,26 @@ const (
 )
 
 var schema = []string{
+	`CREATE TABLE IF NOT EXISTS users(
+		id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+		uuid VARCHAR(36) NOT NULL,
+		username VARCHAR(100) NOT NULL,
+		password VARCHAR(255) NOT NULL
+		)`,
+	`CREATE TBALE IF NOT EXISTS cars(
+		id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+		uuid VARCHAR(36) NOT NULL,
+		plate VARCHAR(12) NOT NULL UNIQUE,
+		FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+	)`,
 	`CREATE TABLE IF NOT EXISTS appointments(
 		id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 		uuid VARCHAR(36) NOT NULL,
-		item VARCHAR(100) NOT NULL,
-		order_at DATETIME NOT NULL,
-		order_by VARCHAR(100) NOT NULL,
-		create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-		)`,
-	`CREATE TABLE IF NOT EXISTS users(
-		id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-		appointment_id INT NOT NULL,
-		username VARCHAR(100) NOT NULL,
-		FOREIGN KEY(appointment_id) REFERENCES appointments(id) ON DELETE CASCADE
+		FOREIGN KEY (car_id) REFERENCES cars (id) ON DELETE CASCADE,
+		FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+		start_time DATETIME NOT NULL,
+		end_time DATETIME NOT NULL,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 		)`,
 }
 
@@ -102,6 +110,40 @@ func (m *Repository) OpenConn() error {
 
 func (m *Repository) CloseConn() error {
 	m.db.Close()
+	return nil
+}
+
+func (m *Repository) CreateUser(u *User) error {
+	if u == nil {
+		return nil
+	}
+	//TODO: 檢查空字串
+	if u.Username == "" || u.Password == "" {
+		return errors.New("不得為空值")
+	}
+	if u.Uuid == "" {
+		u.Uuid = uuid.NewV4().String()
+	}
+	pwd, err := u.HashPassword()
+	if err != nil {
+		return err
+	}
+	q := "INSERT INTO users SET username = ?, password = ?, uuid = ?"
+
+	if _, err := m.db.Exec(q, u.Username, pwd, u.Uuid); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *Repository) DeleteUser(u *User) error {
+	if u == nil {
+		return nil
+	}
+	q := "DELETE FROM users WHERE uuid = ?"
+	if _, err := m.db.Exec(q, u.Uuid); err != nil {
+		return err
+	}
 	return nil
 }
 

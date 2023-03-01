@@ -41,16 +41,6 @@ const (
 	UnauthorizedResponse string = "unauthorized"
 )
 
-type Appointment struct {
-	Username string
-	Date     time.Time
-}
-type NewAppointment struct {
-	Username string
-	Item     string
-	Date     time.Time
-}
-
 // type CustomFunc func(echo.Context) error
 var users map[string]string = map[string]string{
 	"tony":   "4321",

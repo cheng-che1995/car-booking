@@ -7,7 +7,7 @@
 * 基於HTTP METHOD，實作RESTFul API
 * 使用Golang原生數據庫[BoltDB](https://github.com/boltdb/bolt) 實現簡單的K/V 數據儲存
 * 使用[Hoppscotch](https://docs.hoppscotch.io/)執行API測試
-* 導入MySQL資料庫(https://github.com/go-sql-driver/mysql) 實現簡易的CRUD
+* 導入[MySQL資料庫](https://github.com/go-sql-driver/mysql) 實現簡易的CRUD
 
 ### TODO List
 * 使用者註冊功能

@@ -10,17 +10,25 @@ var (
 	ErrUnauthorized = errors.New("unauthorized")
 )
 
-type SearchFilter struct {
+type GetAppointmentsFilter struct {
 	Username  *string
 	Item      *string
 	DateStart *string
 	DateEnd   *string
 }
 
-type AppointmentRepository interface {
-	Create(*Appointment) error
-	Search(*SearchFilter) ([]Appointment, error)
-	Delete(*Appointment) error
+type GetCarsFilter struct {
+}
+
+type CarBookingRepository interface {
+	CreateUser(*User) error
+	DeleteUser(*User) error
+	CreateCar(*Car) error
+	DeleteCar(*Car) error
+	GetCars(*GetCarsFilter) ([]Car, error)
+	CreateAppointment(*Appointment) error
+	DeleteAppointment(*Appointment) error
+	GetAppointments(*GetAppointmentsFilter) ([]Appointment, error)
 }
 
 // TODO: 找其他地方放
