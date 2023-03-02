@@ -153,10 +153,30 @@ func (m *Repository) CreateCar(c *Car) error {
 		return nil
 	}
 
-	q := `INSERT INTO cars SET plate = ?, user_id = (SELECT id FROM users WHERE uuid = ?)`
+	if c.Uuid == "" {
+		c.GenerateUuid()
+	}
 
-	// c.Plate
-	// c.UserUuid
+	if err := c.Validate(); err != nil {
+		return err
+	}
+
+	q := `INSERT INTO cars SET plate = ?, uuid = ?, user_id = (SELECT id FROM users WHERE uuid = ?)`
+	if _, err := m.db.Exec(q, c.Plate, c.Uuid, c.UserUuid); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *Repository) DeleteCar(c *Car) error {
+	if c == nil {
+		return nil
+	}
+	q := `DELETE FROM cars WHERE uuid = ?`
+	if _, err := m.db.Exec(q, c.Uuid); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (m *Repository) Create(username string, item string, date string) error {

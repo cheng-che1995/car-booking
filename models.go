@@ -16,11 +16,6 @@ type Appointment struct {
 	CarUuid   string
 }
 
-type Car struct {
-	Plate    string
-	UserUuid string
-}
-
 type User struct {
 	Uuid     string
 	Username string
@@ -54,6 +49,29 @@ func (u User) Validate() error {
 	}
 	if u.Uuid == "" {
 		return errors.New("uuid不得為空值！")
+	}
+	return nil
+}
+
+type Car struct {
+	Plate    string
+	Uuid     string
+	UserUuid string
+}
+
+func (c *Car) GenerateUuid() {
+	c.Uuid = uuid.NewV4().String()
+}
+
+func (c Car) Validate() error {
+	if c.Plate == "" {
+		return errors.New("車牌不得為空值！")
+	}
+	if c.Uuid == "" {
+		return errors.New("uuid不得為空值！")
+	}
+	if c.UserUuid == "" {
+		return errors.New("UserUuid不得為空值！")
 	}
 	return nil
 }
