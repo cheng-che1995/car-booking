@@ -18,6 +18,10 @@ type GetAppointmentsFilter struct {
 }
 
 type GetCarsFilter struct {
+	Id      int
+	Uuid    string
+	Plate   string
+	User_id string
 }
 
 type CarBookingRepository interface {
@@ -29,11 +33,4 @@ type CarBookingRepository interface {
 	CreateAppointment(*Appointment) error
 	DeleteAppointment(*Appointment) error
 	GetAppointments(*GetAppointmentsFilter) ([]Appointment, error)
-}
-
-// TODO: 找其他地方放
-func checkEmptyString(a *string) {
-	if len(*a) > 0 {
-		a = nil
-	}
 }

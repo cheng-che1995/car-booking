@@ -179,6 +179,53 @@ func (m *Repository) DeleteCar(c *Car) error {
 	return nil
 }
 
+func (m *Repository) GetCars(g *GetCarsFilter) ([]Car, error) {
+	cars := []Car{}
+	if g == nil {
+		return nil, nil
+	}
+	q := `SELECT uuid, plate FROM cars`
+	rows, err := m.db.Query(q)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		car := Car{}
+		if err := rows.Scan(&car.Uuid, &car.Plate); err != nil {
+			return nil, err
+		}
+		cars = append(cars, car)
+	}
+	return cars, nil
+}
+
+func (m *Repository) CreateAppointment(a *Appointment) error {
+	if a == nil {
+		return nil
+	}
+	if err := a.Vaildate(); err != nil {
+		return err
+	}
+	if a.Uuid == "" {
+		a.generateUuid()
+	}
+
+	q := `INSERT INTO appointments SET start_time = ?, end_time = ?, uuid = ?, user_id = (SELECT id FROM users WHERE uuid = ?), car_id = (SELECT id FROM cars WHERE uuid = ?)`
+	if _, err := m.db.Exec(q, a.StartTime, a.EndTime, a.Uuid, a.UserUuid, a.CarUuid); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *Repository) DeleteAppointment(a *Appointment) error {
+	if a == nil {
+		return nil
+	}
+
+	return nil
+}
+
 func (m *Repository) Create(username string, item string, date string) error {
 	tx, err := m.db.BeginTx(context.TODO(), nil)
 	if err != nil {
