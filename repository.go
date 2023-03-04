@@ -11,10 +11,12 @@ var (
 )
 
 type GetAppointmentsFilter struct {
-	Username  *string
-	Item      *string
-	DateStart *string
-	DateEnd   *string
+	Id        int
+	Uuid      string
+	Car_id    string
+	User_id   string
+	StartTime string
+	EndTime   string
 }
 
 type GetCarsFilter struct {

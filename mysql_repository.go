@@ -222,8 +222,16 @@ func (m *Repository) DeleteAppointment(a *Appointment) error {
 	if a == nil {
 		return nil
 	}
-
+	q := `DELETE FROM appointments WHERE uuid = ?`
+	if _, err := m.db.Exec(q, a.Uuid); err != nil {
+		return nil
+	}
 	return nil
+}
+
+func (m *Repository) GetAppointments(g *GetAppointmentsFilter) ([]Appointment, error) {
+	appointment := Appointment{}
+
 }
 
 func (m *Repository) Create(username string, item string, date string) error {

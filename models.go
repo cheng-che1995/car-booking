@@ -21,10 +21,12 @@ func (a *Appointment) generateUuid() {
 	a.Uuid = uuid.NewV4().String()
 }
 
-// TODO: 檢查預約時間是否衝突
 func (a Appointment) Vaildate() error {
 	if a.StartTime.Format("2006-01-02") == "" || a.StartTime.Format("2006-01-02") == "" {
 		return errors.New("預約起始、結束時間不得為空值！")
+	}
+	if a.StartTime.After(a.EndTime) {
+		return errors.New("預約起始、結束時間順序有誤，請重新選擇！")
 	}
 	if a.UserUuid == "" {
 		return errors.New("UserUuid不得為空值！")
