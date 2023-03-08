@@ -21,7 +21,10 @@ func (a *Appointment) generateUuid() {
 	a.Uuid = uuid.NewV4().String()
 }
 
-func (a Appointment) Vaildate() error {
+func (a *Appointment) Vaildate() error {
+	if a == nil {
+		return nil
+	}
 	if a.StartTime.Format("2006-01-02") == "" || a.StartTime.Format("2006-01-02") == "" {
 		return errors.New("預約起始、結束時間不得為空值！")
 	}
@@ -52,7 +55,7 @@ func (u User) HashPassword() ([]byte, error) {
 	hash.Write([]byte(u.Password))
 	marshaler, ok := hash.(encoding.BinaryMarshaler)
 	if !ok {
-		return nil, errors.New("hash failed.")
+		return nil, errors.New("hash password failed.")
 	}
 	pwd, err := marshaler.MarshalBinary()
 	if err != nil {
@@ -61,15 +64,15 @@ func (u User) HashPassword() ([]byte, error) {
 	return pwd, nil
 }
 
-func (u User) Validate() error {
+func (u *User) Validate() error {
+	if u == nil {
+		return nil
+	}
 	if u.Username == "" {
 		return errors.New("使用者名稱不得為空值！")
 	}
 	if u.Password == "" {
 		return errors.New("密碼不得為空值！")
-	}
-	if u.Uuid == "" {
-		return errors.New("uuid不得為空值！")
 	}
 	return nil
 }
@@ -84,7 +87,10 @@ func (c *Car) GenerateUuid() {
 	c.Uuid = uuid.NewV4().String()
 }
 
-func (c Car) Validate() error {
+func (c *Car) Validate() error {
+	if c == nil {
+		return nil
+	}
 	if c.Plate == "" {
 		return errors.New("車牌不得為空值！")
 	}

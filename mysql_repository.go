@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
-	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 	uuid "github.com/satori/go.uuid"
@@ -113,16 +113,22 @@ func (m *Repository) CloseConn() error {
 }
 
 func (m *Repository) CreateUser(u *User) error {
-	if u == nil {
-		return nil
+	if err := u.Validate(); err != nil {
+		return err
+	}
+
+	s := `SELECT username FROM users WHERE username = ?`
+	rows, err := m.db.Query(s, u.Username)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	if rows.Next() {
+		return errors.New("此使用者名稱已註冊！")
 	}
 
 	if u.Uuid == "" {
 		u.GenerateUuid()
-	}
-
-	if err := u.Validate(); err != nil {
-		return err
 	}
 
 	pwd, err := u.HashPassword()
@@ -149,16 +155,21 @@ func (m *Repository) DeleteUser(u *User) error {
 }
 
 func (m *Repository) CreateCar(c *Car) error {
-	if c == nil {
-		return nil
-	}
-
-	if c.Uuid == "" {
-		c.GenerateUuid()
-	}
-
 	if err := c.Validate(); err != nil {
 		return err
+	}
+
+	s := `SELECT plate FROM cars WHERE plate = ?`
+	rows, err := m.db.Query(s, c.Plate)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	if rows.Next() {
+		return errors.New("此車牌已註冊！")
+	}
+	if c.Uuid == "" {
+		c.GenerateUuid()
 	}
 
 	q := `INSERT INTO cars SET plate = ?, uuid = ?, user_id = (SELECT id FROM users WHERE uuid = ?)`
@@ -201,12 +212,26 @@ func (m *Repository) GetCars(g *GetCarsFilter) ([]Car, error) {
 }
 
 func (m *Repository) CreateAppointment(a *Appointment) error {
-	if a == nil {
-		return nil
-	}
 	if err := a.Vaildate(); err != nil {
 		return err
 	}
+
+	s := `SELECT start_time, endtime FROM appointments WHERE user_id = ?, car_id = ?`
+	rows, err := m.db.Query(s, a.UserUuid, a.CarUuid)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	if rows.Next() {
+		appointment := Appointment{}
+		if err := rows.Scan(&appointment.StartTime, &appointment.EndTime); err != nil {
+			return err
+		}
+		if !(a.EndTime.Before(appointment.StartTime) || a.StartTime.After(appointment.EndTime)) {
+			return errors.New("預約時間重疊，請重新選擇！")
+		}
+	}
+
 	if a.Uuid == "" {
 		a.generateUuid()
 	}
@@ -229,9 +254,26 @@ func (m *Repository) DeleteAppointment(a *Appointment) error {
 	return nil
 }
 
+// TODO: 優化搜尋邏輯。
 func (m *Repository) GetAppointments(g *GetAppointmentsFilter) ([]Appointment, error) {
-	appointment := Appointment{}
-
+	appointments := []Appointment{}
+	if g == nil {
+		return nil, nil
+	}
+	q := `SELECT uuid, user_id, car_id, start_time, end_time FROM appointments`
+	rows, err := m.db.Query(q)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		appointment := Appointment{}
+		if err := rows.Scan(&appointment.Uuid, &appointment.UserUuid, &appointment.CarUuid, appointment.StartTime, appointment.EndTime); err != nil {
+			return nil, err
+		}
+		appointments = append(appointments, appointment)
+	}
+	return appointments, nil
 }
 
 func (m *Repository) Create(username string, item string, date string) error {
@@ -284,85 +326,85 @@ func (m *Repository) Create(username string, item string, date string) error {
 	return nil
 }
 
-func (m *Repository) Search(a *SearchFilter) ([]NewAppointment, error) {
-	var (
-		FilteredAppointments []NewAppointment
-		dateStart            time.Time
-		dateEnd              time.Time
-		id                   int
-		uuid                 string
-		item                 string
-		orderAt              time.Time
-		createBy             string
-		createTime           time.Time
-	)
-	checkEmptyString(a.Username)
-	checkEmptyString(a.Item)
-	checkEmptyString(a.DateStart)
-	checkEmptyString(a.DateEnd)
+// func (m *Repository) Search(a *SearchFilter) ([]NewAppointment, error) {
+// 	var (
+// 		FilteredAppointments []NewAppointment
+// 		dateStart            time.Time
+// 		dateEnd              time.Time
+// 		id                   int
+// 		uuid                 string
+// 		item                 string
+// 		orderAt              time.Time
+// 		createBy             string
+// 		createTime           time.Time
+// 	)
+// 	checkEmptyString(a.Username)
+// 	checkEmptyString(a.Item)
+// 	checkEmptyString(a.DateStart)
+// 	checkEmptyString(a.DateEnd)
 
-	if a.DateStart != nil {
-		dateStart, _ = time.Parse("2006-01-02", *a.DateStart)
-	}
-	if a.DateEnd != nil {
-		dateEnd, _ = time.Parse("2006-01-02", *a.DateEnd)
-	}
+// 	if a.DateStart != nil {
+// 		dateStart, _ = time.Parse("2006-01-02", *a.DateStart)
+// 	}
+// 	if a.DateEnd != nil {
+// 		dateEnd, _ = time.Parse("2006-01-02", *a.DateEnd)
+// 	}
 
-	rows, err := m.db.Query("SELECT * FROM appointments")
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	for rows.Next() {
-		err = rows.Scan(&id, &uuid, &item, &orderAt, &createBy, &createTime)
-		if err != nil {
-			fmt.Printf("Scan failed: %v\n", err)
-			return nil, err
-		}
-		if (*a.Username == "" || *a.Username == createBy) &&
-			(*a.Item == "" || *a.Item == item) &&
-			(dateStart.Before(orderAt) || dateStart.Equal(orderAt) || *a.DateStart == "") &&
-			(dateEnd.After(orderAt) || dateEnd.Equal(orderAt) || *a.DateEnd == "") {
-			FilteredAppointments = append(FilteredAppointments, NewAppointment{Username: createBy, Item: item, Date: orderAt})
-		}
-	}
-	return FilteredAppointments, nil
-}
+// 	rows, err := m.db.Query("SELECT * FROM appointments")
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	defer rows.Close()
+// 	for rows.Next() {
+// 		err = rows.Scan(&id, &uuid, &item, &orderAt, &createBy, &createTime)
+// 		if err != nil {
+// 			fmt.Printf("Scan failed: %v\n", err)
+// 			return nil, err
+// 		}
+// 		if (*a.Username == "" || *a.Username == createBy) &&
+// 			(*a.Item == "" || *a.Item == item) &&
+// 			(dateStart.Before(orderAt) || dateStart.Equal(orderAt) || *a.DateStart == "") &&
+// 			(dateEnd.After(orderAt) || dateEnd.Equal(orderAt) || *a.DateEnd == "") {
+// 			FilteredAppointments = append(FilteredAppointments, NewAppointment{Username: createBy, Item: item, Date: orderAt})
+// 		}
+// 	}
+// 	return FilteredAppointments, nil
+// }
 
-func (m *Repository) Delete(username string, item string, date string) error {
-	tx, err := m.db.BeginTx(context.TODO(), nil)
-	if err != nil {
-		fmt.Printf("BeginTx failed: %v\n", err)
-		return err
-	}
-	defer tx.Rollback()
+// func (m *Repository) Delete(username string, item string, date string) error {
+// 	tx, err := m.db.BeginTx(context.TODO(), nil)
+// 	if err != nil {
+// 		fmt.Printf("BeginTx failed: %v\n", err)
+// 		return err
+// 	}
+// 	defer tx.Rollback()
 
-	rows, err := m.db.Query("SELECT * FROM appointments WHERE item = ? AND order_at = ?", item, date)
-	if err != nil {
-		return err
-	}
-	if !rows.Next() {
-		return ErrNotFound
-	}
-	rows2, err := m.db.Query("SELECT * FROM appointments WHERE order_by = ? AND item = ? AND order_at = ?", username, item, date)
-	if err != nil {
-		return err
-	}
-	if !rows2.Next() {
-		return ErrUnauthorized
-	}
+// 	rows, err := m.db.Query("SELECT * FROM appointments WHERE item = ? AND order_at = ?", item, date)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	if !rows.Next() {
+// 		return ErrNotFound
+// 	}
+// 	rows2, err := m.db.Query("SELECT * FROM appointments WHERE order_by = ? AND item = ? AND order_at = ?", username, item, date)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	if !rows2.Next() {
+// 		return ErrUnauthorized
+// 	}
 
-	res, err := tx.Exec("DELETE FROM appointments WHERE order_by = ? AND item = ? AND order_at = ?", username, item, date)
-	if err != nil {
-		fmt.Printf("Delete from appointments failed: %v\n", err)
-		return err
-	}
+// 	res, err := tx.Exec("DELETE FROM appointments WHERE order_by = ? AND item = ? AND order_at = ?", username, item, date)
+// 	if err != nil {
+// 		fmt.Printf("Delete from appointments failed: %v\n", err)
+// 		return err
+// 	}
 
-	res.RowsAffected()
+// 	res.RowsAffected()
 
-	if err = tx.Commit(); err != nil {
-		fmt.Printf("tx.Commit failed: %v\n", err)
-		return err
-	}
-	return nil
-}
+// 	if err = tx.Commit(); err != nil {
+// 		fmt.Printf("tx.Commit failed: %v\n", err)
+// 		return err
+// 	}
+// 	return nil
+// }
