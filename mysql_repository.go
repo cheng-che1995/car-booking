@@ -7,7 +7,6 @@ import (
 	"fmt"
 
 	_ "github.com/go-sql-driver/mysql"
-	uuid "github.com/satori/go.uuid"
 )
 
 // database info
@@ -24,21 +23,24 @@ const (
 var schema = []string{
 	`CREATE TABLE IF NOT EXISTS users(
 		id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-		uuid VARCHAR(36) NOT NULL,
-		username VARCHAR(100) NOT NULL,
+		uuid VARCHAR(36) NOT NULL UNIQUE,
+		username VARCHAR(100) NOT NULL UNIQUE,
 		password VARCHAR(255) NOT NULL
 		)`,
 	`CREATE TABLE IF NOT EXISTS cars(
 		id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-		uuid VARCHAR(36) NOT NULL,
+		uuid VARCHAR(36) NOT NULL UNIQUE,
 		plate VARCHAR(12) NOT NULL UNIQUE,
-		FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+		user_uuid VARCHAR(36) NOT NULL,
+		FOREIGN KEY (user_uuid) REFERENCES users (uuid) ON DELETE CASCADE
 	)`,
 	`CREATE TABLE IF NOT EXISTS appointments(
 		id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-		uuid VARCHAR(36) NOT NULL,
-		FOREIGN KEY (car_id) REFERENCES cars (id) ON DELETE CASCADE,
-		FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+		uuid VARCHAR(36) NOT NULL UNIQUE,
+		user_uuid VARCHAR(36) NOT NULL,
+		car_uuid VARCHAR(36) NOT NULL,
+		FOREIGN KEY (user_uuid) REFERENCES users (uuid) ON DELETE CASCADE,
+		FOREIGN KEY (car_uuid) REFERENCES cars (uuid) ON DELETE CASCADE,
 		start_time DATETIME NOT NULL,
 		end_time DATETIME NOT NULL,
 		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -117,16 +119,6 @@ func (m *Repository) CreateUser(u *User) error {
 		return err
 	}
 
-	s := `SELECT username FROM users WHERE username = ?`
-	rows, err := m.db.Query(s, u.Username)
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-	if rows.Next() {
-		return errors.New("此使用者名稱已註冊！")
-	}
-
 	if u.Uuid == "" {
 		u.GenerateUuid()
 	}
@@ -154,25 +146,37 @@ func (m *Repository) DeleteUser(u *User) error {
 	return nil
 }
 
+func (m *Repository) GetUsers(g *GetUsersFilter) ([]User, error) {
+	if g == nil {
+		return nil, nil
+	}
+	users := []User{}
+	query, whereValues := g.GenerateQuery()
+	rows, err := m.db.Query(query, whereValues...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		user := User{}
+		if err := rows.Scan(&user.Username); err != nil {
+			return nil, err
+		}
+		users = append(users, user)
+	}
+	return users, err
+}
+
 func (m *Repository) CreateCar(c *Car) error {
 	if err := c.Validate(); err != nil {
 		return err
 	}
 
-	s := `SELECT plate FROM cars WHERE plate = ?`
-	rows, err := m.db.Query(s, c.Plate)
-	if err != nil {
-		return nil
-	}
-	defer rows.Close()
-	if rows.Next() {
-		return errors.New("此車牌已註冊！")
-	}
 	if c.Uuid == "" {
 		c.GenerateUuid()
 	}
 
-	q := `INSERT INTO cars SET plate = ?, uuid = ?, user_id = (SELECT id FROM users WHERE uuid = ?)`
+	q := `INSERT INTO cars SET plate = ?, uuid = ?, user_uuid = ?`
 	if _, err := m.db.Exec(q, c.Plate, c.Uuid, c.UserUuid); err != nil {
 		return err
 	}
@@ -190,20 +194,21 @@ func (m *Repository) DeleteCar(c *Car) error {
 	return nil
 }
 
+// TODO: improve SELECT Query
 func (m *Repository) GetCars(g *GetCarsFilter) ([]Car, error) {
-	cars := []Car{}
 	if g == nil {
 		return nil, nil
 	}
-	q := `SELECT uuid, plate FROM cars`
-	rows, err := m.db.Query(q)
+	cars := []Car{}
+	query, whereValues := g.GenerateQuery()
+	rows, err := m.db.Query(query, whereValues)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	for rows.Next() {
 		car := Car{}
-		if err := rows.Scan(&car.Uuid, &car.Plate); err != nil {
+		if err := rows.Scan(&car.Plate, &car.UserUuid); err != nil {
 			return nil, err
 		}
 		cars = append(cars, car)
@@ -215,28 +220,23 @@ func (m *Repository) CreateAppointment(a *Appointment) error {
 	if err := a.Vaildate(); err != nil {
 		return err
 	}
-
-	s := `SELECT start_time, endtime FROM appointments WHERE user_id = ?, car_id = ?`
-	rows, err := m.db.Query(s, a.UserUuid, a.CarUuid)
+	s := `SELECT COUNT(*) FROM appointments 
+			WHERE car_uuid = ? 
+			AND start_time < ?
+			OR end_time > ?`
+	count := 0
+	err := m.db.QueryRow(s, a.CarUuid, a.EndTime, a.StartTime).Scan(&count)
 	if err != nil {
-		return nil
+		return err
 	}
-	defer rows.Close()
-	if rows.Next() {
-		appointment := Appointment{}
-		if err := rows.Scan(&appointment.StartTime, &appointment.EndTime); err != nil {
-			return err
-		}
-		if !(a.EndTime.Before(appointment.StartTime) || a.StartTime.After(appointment.EndTime)) {
-			return errors.New("預約時間重疊，請重新選擇！")
-		}
+	if count != 0 {
+		return errors.New("預約時間重疊，請重新選擇！")
 	}
-
 	if a.Uuid == "" {
 		a.generateUuid()
 	}
 
-	q := `INSERT INTO appointments SET start_time = ?, end_time = ?, uuid = ?, user_id = (SELECT id FROM users WHERE uuid = ?), car_id = (SELECT id FROM cars WHERE uuid = ?)`
+	q := `INSERT INTO appointments SET start_time = ?, end_time = ?, uuid = ?, user_uuid = ?, car_uuid = ?`
 	if _, err := m.db.Exec(q, a.StartTime, a.EndTime, a.Uuid, a.UserUuid, a.CarUuid); err != nil {
 		return err
 	}
@@ -254,14 +254,14 @@ func (m *Repository) DeleteAppointment(a *Appointment) error {
 	return nil
 }
 
-// TODO: 優化搜尋邏輯。
+// TODO: 動態編輯SELECT Query。
 func (m *Repository) GetAppointments(g *GetAppointmentsFilter) ([]Appointment, error) {
 	appointments := []Appointment{}
 	if g == nil {
 		return nil, nil
 	}
-	q := `SELECT uuid, user_id, car_id, start_time, end_time FROM appointments`
-	rows, err := m.db.Query(q)
+
+	rows, err := m.db.Query(q, g.CarUuid)
 	if err != nil {
 		return nil, err
 	}
@@ -276,55 +276,55 @@ func (m *Repository) GetAppointments(g *GetAppointmentsFilter) ([]Appointment, e
 	return appointments, nil
 }
 
-func (m *Repository) Create(username string, item string, date string) error {
-	tx, err := m.db.BeginTx(context.TODO(), nil)
-	if err != nil {
-		fmt.Printf("BeginTx failed: %v\n", err)
-		return err
-	}
-	defer tx.Rollback()
+// func (m *Repository) Create(username string, item string, date string) error {
+// 	tx, err := m.db.BeginTx(context.TODO(), nil)
+// 	if err != nil {
+// 		fmt.Printf("BeginTx failed: %v\n", err)
+// 		return err
+// 	}
+// 	defer tx.Rollback()
 
-	// TODO: Make sure the order won't conflict
-	row, err := tx.Query("SELECT * FROM appointments WHERE item = ? AND order_at = ?", item, date)
-	if err != nil {
-		fmt.Printf("check exsits part failed: %v\n", err)
-		return err
-	}
-	if row.Next() {
-		//exsits
-		return ErrConflict
-	}
+// 	// TODO: Make sure the order won't conflict
+// 	row, err := tx.Query("SELECT * FROM appointments WHERE item = ? AND order_at = ?", item, date)
+// 	if err != nil {
+// 		fmt.Printf("check exsits part failed: %v\n", err)
+// 		return err
+// 	}
+// 	if row.Next() {
+// 		//exsits
+// 		return ErrConflict
+// 	}
 
-	stmt1, err := tx.Prepare("INSERT appointments SET uuid = ?, item = ?, order_at = ?, order_by= ?")
-	if err != nil {
-		fmt.Printf("Prepare insert table appointments failed: %v\n", err)
-		return err
-	}
-	res1, err := stmt1.Exec(uuid.NewV4(), item, date, username)
-	if err != nil {
-		fmt.Printf("Insert table appointments failed: %v\n", err)
-		return err
-	}
+// 	stmt1, err := tx.Prepare("INSERT appointments SET uuid = ?, item = ?, order_at = ?, order_by= ?")
+// 	if err != nil {
+// 		fmt.Printf("Prepare insert table appointments failed: %v\n", err)
+// 		return err
+// 	}
+// 	res1, err := stmt1.Exec(uuid.NewV4(), item, date, username)
+// 	if err != nil {
+// 		fmt.Printf("Insert table appointments failed: %v\n", err)
+// 		return err
+// 	}
 
-	id, _ := res1.LastInsertId()
+// 	id, _ := res1.LastInsertId()
 
-	stmt2, err := tx.Prepare("INSERT users SET appointment_id = ?, username = ?")
-	if err != nil {
-		fmt.Printf("Prepare insert table users failed: %v\n", err)
-		return err
-	}
-	res2, err := stmt2.Exec(id, username)
-	if err != nil {
-		fmt.Printf("Insert table users failed: %v\n", err)
-	}
-	res2.RowsAffected()
+// 	stmt2, err := tx.Prepare("INSERT users SET appointment_id = ?, username = ?")
+// 	if err != nil {
+// 		fmt.Printf("Prepare insert table users failed: %v\n", err)
+// 		return err
+// 	}
+// 	res2, err := stmt2.Exec(id, username)
+// 	if err != nil {
+// 		fmt.Printf("Insert table users failed: %v\n", err)
+// 	}
+// 	res2.RowsAffected()
 
-	if err = tx.Commit(); err != nil {
-		fmt.Printf("tx.Commit failed: %v\n", err)
-		return err
-	}
-	return nil
-}
+// 	if err = tx.Commit(); err != nil {
+// 		fmt.Printf("tx.Commit failed: %v\n", err)
+// 		return err
+// 	}
+// 	return nil
+// }
 
 // func (m *Repository) Search(a *SearchFilter) ([]NewAppointment, error) {
 // 	var (
