@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 )
 
@@ -82,10 +83,17 @@ type GetAppointmentsFilter struct {
 }
 
 // TODO: add Time filter.
-func (g *GetAppointmentsFilter) GenerateQuery() (string, []interface{}) {
-	query := "SELECT * FROM appointments"
+func (g *GetAppointmentsFilter) GenerateQuery(fields []string) (string, []interface{}) {
+	selectClause := ""
+	if len(fields) == 0 {
+		selectClause = "*"
+	} else {
+		selectClause = strings.Join(fields, ", ")
+	}
+	query := fmt.Sprintf("SELECT %s FROM appointments", selectClause)
 	var conditions []string
 	var whereValues []interface{}
+
 	if g.Id != 0 {
 		conditions = append(conditions, "id = ?")
 		whereValues = append(whereValues, g.Id)

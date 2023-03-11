@@ -146,6 +146,22 @@ func (m *Repository) DeleteUser(u *User) error {
 	return nil
 }
 
+func (m *Repository) GetUser(uuid string) (*User, error) {
+	if &uuid == nil {
+		return nil, nil
+	}
+	query := "SELECT username FROM users WHERE uuid = ?"
+	rows, err := m.db.Query(query, uuid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	user := User{}
+	if err := rows.Scan(&user.Username); err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
 func (m *Repository) GetUsers(g *GetUsersFilter) ([]User, error) {
 	if g == nil {
 		return nil, nil
@@ -193,15 +209,28 @@ func (m *Repository) DeleteCar(c *Car) error {
 	}
 	return nil
 }
-
-// TODO: improve SELECT Query
+func (m *Repository) GetCar(uuid string) (*Car, error) {
+	if &uuid == nil {
+		return nil, nil
+	}
+	query := `SELECT plate, user_uuid FROM cars WHERE uuid = ?`
+	rows, err := m.db.Query(query, uuid)
+	if err != nil {
+		return nil, err
+	}
+	car := Car{}
+	if err := rows.Scan(&car.Plate, &car.UserUuid); err != nil {
+		return nil, err
+	}
+	return &car, nil
+}
 func (m *Repository) GetCars(g *GetCarsFilter) ([]Car, error) {
 	if g == nil {
 		return nil, nil
 	}
 	cars := []Car{}
 	query, whereValues := g.GenerateQuery()
-	rows, err := m.db.Query(query, whereValues)
+	rows, err := m.db.Query(query, whereValues...)
 	if err != nil {
 		return nil, err
 	}
@@ -254,157 +283,37 @@ func (m *Repository) DeleteAppointment(a *Appointment) error {
 	return nil
 }
 
-// TODO: 動態編輯SELECT Query。
-func (m *Repository) GetAppointments(g *GetAppointmentsFilter) ([]Appointment, error) {
-	appointments := []Appointment{}
+// TODO: 動態變更SELECT欄位，用map
+func (m *Repository) GetAppointments(fields []string, g *GetAppointmentsFilter) ([]Appointment, error) {
 	if g == nil {
 		return nil, nil
 	}
-
-	rows, err := m.db.Query(q, g.CarUuid)
+	appointment := Appointment{}
+	appointments := []Appointment{}
+	fieldsMap := map[string]interface{}{
+		"uuid":       &appointment.Uuid,
+		"user_uuid":  &appointment.UserUuid,
+		"car_uuid":   &appointment.CarUuid,
+		"start_time": &appointment.StartTime,
+		"end_time":   &appointment.EndTime,
+	}
+	var scanArgs []interface{}
+	for _, v := range fields {
+		if val, ok := fieldsMap[v]; ok {
+			scanArgs = append(scanArgs, val)
+		}
+	}
+	query, whereValues := g.GenerateQuery(fields)
+	rows, err := m.db.Query(query, whereValues...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	for rows.Next() {
-		appointment := Appointment{}
-		if err := rows.Scan(&appointment.Uuid, &appointment.UserUuid, &appointment.CarUuid, appointment.StartTime, appointment.EndTime); err != nil {
+		if err := rows.Scan(scanArgs...); err != nil {
 			return nil, err
 		}
 		appointments = append(appointments, appointment)
 	}
 	return appointments, nil
 }
-
-// func (m *Repository) Create(username string, item string, date string) error {
-// 	tx, err := m.db.BeginTx(context.TODO(), nil)
-// 	if err != nil {
-// 		fmt.Printf("BeginTx failed: %v\n", err)
-// 		return err
-// 	}
-// 	defer tx.Rollback()
-
-// 	// TODO: Make sure the order won't conflict
-// 	row, err := tx.Query("SELECT * FROM appointments WHERE item = ? AND order_at = ?", item, date)
-// 	if err != nil {
-// 		fmt.Printf("check exsits part failed: %v\n", err)
-// 		return err
-// 	}
-// 	if row.Next() {
-// 		//exsits
-// 		return ErrConflict
-// 	}
-
-// 	stmt1, err := tx.Prepare("INSERT appointments SET uuid = ?, item = ?, order_at = ?, order_by= ?")
-// 	if err != nil {
-// 		fmt.Printf("Prepare insert table appointments failed: %v\n", err)
-// 		return err
-// 	}
-// 	res1, err := stmt1.Exec(uuid.NewV4(), item, date, username)
-// 	if err != nil {
-// 		fmt.Printf("Insert table appointments failed: %v\n", err)
-// 		return err
-// 	}
-
-// 	id, _ := res1.LastInsertId()
-
-// 	stmt2, err := tx.Prepare("INSERT users SET appointment_id = ?, username = ?")
-// 	if err != nil {
-// 		fmt.Printf("Prepare insert table users failed: %v\n", err)
-// 		return err
-// 	}
-// 	res2, err := stmt2.Exec(id, username)
-// 	if err != nil {
-// 		fmt.Printf("Insert table users failed: %v\n", err)
-// 	}
-// 	res2.RowsAffected()
-
-// 	if err = tx.Commit(); err != nil {
-// 		fmt.Printf("tx.Commit failed: %v\n", err)
-// 		return err
-// 	}
-// 	return nil
-// }
-
-// func (m *Repository) Search(a *SearchFilter) ([]NewAppointment, error) {
-// 	var (
-// 		FilteredAppointments []NewAppointment
-// 		dateStart            time.Time
-// 		dateEnd              time.Time
-// 		id                   int
-// 		uuid                 string
-// 		item                 string
-// 		orderAt              time.Time
-// 		createBy             string
-// 		createTime           time.Time
-// 	)
-// 	checkEmptyString(a.Username)
-// 	checkEmptyString(a.Item)
-// 	checkEmptyString(a.DateStart)
-// 	checkEmptyString(a.DateEnd)
-
-// 	if a.DateStart != nil {
-// 		dateStart, _ = time.Parse("2006-01-02", *a.DateStart)
-// 	}
-// 	if a.DateEnd != nil {
-// 		dateEnd, _ = time.Parse("2006-01-02", *a.DateEnd)
-// 	}
-
-// 	rows, err := m.db.Query("SELECT * FROM appointments")
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	defer rows.Close()
-// 	for rows.Next() {
-// 		err = rows.Scan(&id, &uuid, &item, &orderAt, &createBy, &createTime)
-// 		if err != nil {
-// 			fmt.Printf("Scan failed: %v\n", err)
-// 			return nil, err
-// 		}
-// 		if (*a.Username == "" || *a.Username == createBy) &&
-// 			(*a.Item == "" || *a.Item == item) &&
-// 			(dateStart.Before(orderAt) || dateStart.Equal(orderAt) || *a.DateStart == "") &&
-// 			(dateEnd.After(orderAt) || dateEnd.Equal(orderAt) || *a.DateEnd == "") {
-// 			FilteredAppointments = append(FilteredAppointments, NewAppointment{Username: createBy, Item: item, Date: orderAt})
-// 		}
-// 	}
-// 	return FilteredAppointments, nil
-// }
-
-// func (m *Repository) Delete(username string, item string, date string) error {
-// 	tx, err := m.db.BeginTx(context.TODO(), nil)
-// 	if err != nil {
-// 		fmt.Printf("BeginTx failed: %v\n", err)
-// 		return err
-// 	}
-// 	defer tx.Rollback()
-
-// 	rows, err := m.db.Query("SELECT * FROM appointments WHERE item = ? AND order_at = ?", item, date)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	if !rows.Next() {
-// 		return ErrNotFound
-// 	}
-// 	rows2, err := m.db.Query("SELECT * FROM appointments WHERE order_by = ? AND item = ? AND order_at = ?", username, item, date)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	if !rows2.Next() {
-// 		return ErrUnauthorized
-// 	}
-
-// 	res, err := tx.Exec("DELETE FROM appointments WHERE order_by = ? AND item = ? AND order_at = ?", username, item, date)
-// 	if err != nil {
-// 		fmt.Printf("Delete from appointments failed: %v\n", err)
-// 		return err
-// 	}
-
-// 	res.RowsAffected()
-
-// 	if err = tx.Commit(); err != nil {
-// 		fmt.Printf("tx.Commit failed: %v\n", err)
-// 		return err
-// 	}
-// 	return nil
-// }
