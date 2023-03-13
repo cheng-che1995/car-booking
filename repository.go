@@ -110,6 +110,14 @@ func (g *GetAppointmentsFilter) GenerateQuery(fields []string) (string, []interf
 		conditions = append(conditions, "car_uuid = ?")
 		whereValues = append(whereValues, g.CarUuid)
 	}
+	if g.StartTime != "" {
+		conditions = append(conditions, "start_time <= ?")
+		whereValues = append(whereValues, g.StartTime)
+	}
+	if g.EndTime != "" {
+		conditions = append(conditions, "end_time >= ?")
+		whereValues = append(whereValues, g.EndTime)
+	}
 	if len(conditions) > 0 {
 		query += " WHERE " + strings.Join(conditions, " AND ")
 	}
