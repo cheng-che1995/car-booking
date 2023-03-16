@@ -283,6 +283,23 @@ func (m *Repository) DeleteAppointment(a *Appointment) error {
 	return nil
 }
 
+func (m *Repository) GetAppointment(uuid string) (*Appointment, error) {
+	if uuid == "" || &uuid == nil {
+		return nil, nil
+	}
+	appointment := Appointment{}
+	q := `SELECT user_uuid, car_uuid, start_time, end_time FROM appointments WHERE uuid = ?`
+	rows, err := m.db.Query(q, uuid)
+	if err != nil {
+		return nil, nil
+	}
+	defer rows.Close()
+	if err := rows.Scan(&appointment.UserUuid, &appointment.CarUuid, &appointment.StartTime, &appointment.EndTime); err != nil {
+		return nil, err
+	}
+	return &appointment, nil
+}
+
 // TODO: 動態變更SELECT欄位，用map
 func (m *Repository) GetAppointments(fields []string, g *GetAppointmentsFilter) ([]Appointment, error) {
 	if g == nil {
