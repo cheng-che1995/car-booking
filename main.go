@@ -285,65 +285,81 @@ func getAppointment(c echo.Context) error {
 	return c.JSON(http.StatusOK, appointent)
 }
 
-func createAppointmentsByMysql(c echo.Context) error {
-	token := c.Get("token").(*jwt.Token)
-	claims := token.Claims.(*jwtCustomClaims)
-	username := claims.Name
-	selectedDate := c.FormValue("selectedDate")
-	selectedItem := c.FormValue("selectedItem")
-
-	errMessage := fmt.Sprintf("%s，此日期已被預訂，請您重新選擇其他日期！", username)
-	successMessage := fmt.Sprintf("預約成功！%s，您的預約日期為： %s", username, selectedDate)
-
-	if err := mysqlRepo.Create(username, selectedItem, selectedDate); err != nil {
-		return c.JSON(http.StatusConflict, AppointmentsResponse{Status: ConflictResponse, Message: errMessage})
+func getAppointments(c echo.Context) error {
+	fields := []string{"appointment_uuid", "user_uuid", "car_uuid", "start_time", "end_time"}
+	g := GetAppointmentsFilter{
+		Uuid:      c.FormValue("appointment_uuid"),
+		UserUuid:  c.FormValue("user_uuid"),
+		CarUuid:   c.FormValue("car_uuid"),
+		StartTime: c.FormValue("start_time"),
+		EndTime:   c.FormValue("end_time"),
 	}
-	return c.JSON(http.StatusOK, AppointmentsResponse{Status: SuccessResponse, Message: successMessage})
-}
-
-func searchAppointmentsByMysql(c echo.Context) error {
-	filterByUsername := c.FormValue("filterByUsername")
-	filterByItem := c.FormValue("filterByItem")
-	filterByDateStart := c.FormValue("filterByDateStart")
-	filterByDateEnd := c.FormValue("filterByDateEnd")
-
-	selectedFilter := SearchFilter{
-		Username:  &filterByUsername,
-		Item:      &filterByItem,
-		DateStart: &filterByDateStart,
-		DateEnd:   &filterByDateEnd,
-	}
-
-	FilteredAppointments, err := mysqlRepo.Search(&selectedFilter)
+	appointments, err := mysqlRepo.GetAppointments(fields, &g)
 	if err != nil {
 		return err
 	}
-	return c.JSON(http.StatusOK, NewAppointmentsResponse{Status: SuccessResponse, NewAppointments: FilteredAppointments})
+	return c.JSON(http.StatusOK, appointments)
 }
 
-func cancelAppointmentsByMysql(c echo.Context) error {
-	token := c.Get("token").(*jwt.Token)
-	claims := token.Claims.(*jwtCustomClaims)
-	username := claims.Name
-	selectedDate := c.FormValue("selectedDate")
-	selectedItem := c.FormValue("selectedItem")
-	// t, err := time.Parse("2006-01-02", selectedDate)
-	// if err != nil {
-	// 	return err
-	// }
-	successMessage := fmt.Sprintf("取消成功！%s，您已將 %s預約取消！", username, selectedDate)
-	unauthorizedMessage := fmt.Sprintf("此%s日期不屬於%s您的預約！", selectedDate, username)
-	notFoundMessage := fmt.Sprintf("查無此預約!%s請您重新選擇日期！", username)
+// func createAppointmentsByMysql(c echo.Context) error {
+// 	token := c.Get("token").(*jwt.Token)
+// 	claims := token.Claims.(*jwtCustomClaims)
+// 	username := claims.Name
+// 	selectedDate := c.FormValue("selectedDate")
+// 	selectedItem := c.FormValue("selectedItem")
 
-	if err := mysqlRepo.Delete(username, selectedItem, selectedDate); err == nil {
-		return c.JSON(http.StatusOK, AppointmentsResponse{Status: SuccessResponse, Message: successMessage})
-	} else if err == ErrNotFound {
-		return c.JSON(http.StatusNotFound, AppointmentsResponse{Status: NotFoundResponse, Message: notFoundMessage})
-	} else if err == ErrUnauthorized {
-		return c.JSON(http.StatusUnauthorized, AppointmentsResponse{Status: UnauthorizedResponse, Message: unauthorizedMessage})
-	}
-	return nil
-}
+// 	errMessage := fmt.Sprintf("%s，此日期已被預訂，請您重新選擇其他日期！", username)
+// 	successMessage := fmt.Sprintf("預約成功！%s，您的預約日期為： %s", username, selectedDate)
+
+// 	if err := mysqlRepo.Create(username, selectedItem, selectedDate); err != nil {
+// 		return c.JSON(http.StatusConflict, AppointmentsResponse{Status: ConflictResponse, Message: errMessage})
+// 	}
+// 	return c.JSON(http.StatusOK, AppointmentsResponse{Status: SuccessResponse, Message: successMessage})
+// }
+
+// func searchAppointmentsByMysql(c echo.Context) error {
+// 	filterByUsername := c.FormValue("filterByUsername")
+// 	filterByItem := c.FormValue("filterByItem")
+// 	filterByDateStart := c.FormValue("filterByDateStart")
+// 	filterByDateEnd := c.FormValue("filterByDateEnd")
+
+// 	selectedFilter := SearchFilter{
+// 		Username:  &filterByUsername,
+// 		Item:      &filterByItem,
+// 		DateStart: &filterByDateStart,
+// 		DateEnd:   &filterByDateEnd,
+// 	}
+
+// 	FilteredAppointments, err := mysqlRepo.Search(&selectedFilter)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	return c.JSON(http.StatusOK, NewAppointmentsResponse{Status: SuccessResponse, NewAppointments: FilteredAppointments})
+// }
+
+// func cancelAppointmentsByMysql(c echo.Context) error {
+// 	token := c.Get("token").(*jwt.Token)
+// 	claims := token.Claims.(*jwtCustomClaims)
+// 	username := claims.Name
+// 	selectedDate := c.FormValue("selectedDate")
+// 	selectedItem := c.FormValue("selectedItem")
+// 	// t, err := time.Parse("2006-01-02", selectedDate)
+// 	// if err != nil {
+// 	// 	return err
+// 	// }
+// 	successMessage := fmt.Sprintf("取消成功！%s，您已將 %s預約取消！", username, selectedDate)
+// 	unauthorizedMessage := fmt.Sprintf("此%s日期不屬於%s您的預約！", selectedDate, username)
+// 	notFoundMessage := fmt.Sprintf("查無此預約!%s請您重新選擇日期！", username)
+
+// 	if err := mysqlRepo.Delete(username, selectedItem, selectedDate); err == nil {
+// 		return c.JSON(http.StatusOK, AppointmentsResponse{Status: SuccessResponse, Message: successMessage})
+// 	} else if err == ErrNotFound {
+// 		return c.JSON(http.StatusNotFound, AppointmentsResponse{Status: NotFoundResponse, Message: notFoundMessage})
+// 	} else if err == ErrUnauthorized {
+// 		return c.JSON(http.StatusUnauthorized, AppointmentsResponse{Status: UnauthorizedResponse, Message: unauthorizedMessage})
+// 	}
+// 	return nil
+// }
 
 func main() {
 
@@ -385,16 +401,10 @@ func main() {
 	b.DELETE("/car", deleteCar)
 	b.GET("/car", getCar)
 	b.GET("/cars", getCars)
-
-	b.POST("/appointments", createAppointments)
-	b.GET("/appointments", searchAppointments)
-	b.DELETE("/appointments", cancelAppointments)
-
-	//TODO: separate new route for mysql repo.
-	b.POST("/appointment", createAppointmentsByMysql)
-	b.GET("/appointment", searchAppointmentsByMysql)
-	b.DELETE("/appointment", cancelAppointmentsByMysql)
-
+	b.POST("/appointment", createAppointment)
+	b.DELETE("/appointment", deleteAppointment)
+	b.GET("/appointment", getAppointment)
+	b.GET("/appointments", getAppointments)
 	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
 		Format:           "time=${time_custom}, status=${status}, method=${method}, uri=${uri}\nerror:{${error}}\n",
 		CustomTimeFormat: "2006-01-02 15:04:05",

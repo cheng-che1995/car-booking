@@ -308,11 +308,11 @@ func (m *Repository) GetAppointments(fields []string, g *GetAppointmentsFilter) 
 	appointment := Appointment{}
 	appointments := []Appointment{}
 	fieldsMap := map[string]interface{}{
-		"uuid":       &appointment.Uuid,
-		"user_uuid":  &appointment.UserUuid,
-		"car_uuid":   &appointment.CarUuid,
-		"start_time": &appointment.StartTime,
-		"end_time":   &appointment.EndTime,
+		"appointment_uuid": &appointment.Uuid,
+		"user_uuid":        &appointment.UserUuid,
+		"car_uuid":         &appointment.CarUuid,
+		"start_time":       &appointment.StartTime,
+		"end_time":         &appointment.EndTime,
 	}
 	var scanArgs []interface{}
 	for _, v := range fields {
