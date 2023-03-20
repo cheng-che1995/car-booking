@@ -15,10 +15,16 @@ type jwtCustomClaims struct {
 	jwt.StandardClaims
 }
 
+type LoginRequest struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
 type LoginResponse struct {
 	Token   string `json:"token"`
 	Status  string `json:"status"`
 	Message string `json:"message"`
+	User    User   `json:"user"`
 }
 
 type AppointmentsResponse struct {
@@ -58,20 +64,24 @@ func showUsers(c echo.Context) error {
 
 // TODO: use mysql database.
 func login(c echo.Context) error {
-	username := c.FormValue("username")
-	password := c.FormValue("password")
+	r := LoginRequest{}
+	if err := c.Bind(&r); err != nil {
+		return err
+	}
+	// password := c.FormValue("password")
 	unauthorizedMessage := "密碼錯誤！"
 	successMessage := "驗證成功！"
-	pw, ok := users[username]
+	pw, ok := users[r.Username]
 
-	if pw != password || !ok {
+	if pw != r.Password || !ok {
 		return c.JSON(http.StatusUnauthorized, LoginResponse{Status: UnauthorizedResponse, Message: unauthorizedMessage})
 	}
-
+	var expireTime time.Time
+	expireTime = time.Now().Add(time.Hour * 72)
 	claims := &jwtCustomClaims{
-		username,
+		r.Username,
 		jwt.StandardClaims{
-			ExpiresAt: time.Now().Add(time.Hour * 72).Unix(),
+			ExpiresAt: expireTime.Unix(),
 		},
 	}
 
@@ -82,7 +92,20 @@ func login(c echo.Context) error {
 		return err
 	}
 
-	return c.JSON(http.StatusOK, LoginResponse{Token: t, Status: SuccessResponse, Message: successMessage})
+	resp := LoginResponse{
+		Token:   t,
+		Status:  SuccessResponse,
+		Message: successMessage,
+		User:    User{Username: r.Username, Uuid: "1234"}}
+	cookie := new(http.Cookie)
+	cookie.Name = "jwt_access"
+	cookie.Value = t
+	cookie.Expires = expireTime
+	// cookie.HttpOnly = true
+	// cookie.SameSite = http.SameSiteStrictMode
+	// cookie.Secure = true
+	c.SetCookie(cookie)
+	return c.JSON(http.StatusOK, resp)
 }
 
 // func createAppointments(c echo.Context) error {
@@ -175,7 +198,7 @@ func createUser(c echo.Context) error {
 // TODO: 新增驗證
 func deleteUser(c echo.Context) error {
 	newUser := User{
-		Uuid: c.FormValue("user_uuid"),
+		Uuid: c.Param("uuid"),
 	}
 	if err := mysqlRepo.DeleteUser(&newUser); err != nil {
 		return c.JSON(http.StatusOK, err)
@@ -183,7 +206,8 @@ func deleteUser(c echo.Context) error {
 	return c.JSON(http.StatusOK, fmt.Sprintf("使用者刪除成功！"))
 }
 func getUser(c echo.Context) error {
-	uuid := c.FormValue("user_uuid")
+
+	uuid := c.Param("uuid")
 	user, err := mysqlRepo.GetUser(uuid)
 	if err != nil {
 		return err
@@ -393,9 +417,9 @@ func main() {
 			return c.String(http.StatusUnauthorized, err.Error())
 		},
 	}))
-	b.POST("/user", createUser)
-	b.DELETE("/user", deleteUser)
-	b.GET("/user", getUser)
+	b.POST("/users", createUser)
+	b.DELETE("/users/:uuid", deleteUser)
+	b.GET("/users/:uuid", getUser)
 	b.GET("/users", getUsers)
 	b.POST("/car", createCar)
 	b.DELETE("/car", deleteCar)
@@ -409,6 +433,10 @@ func main() {
 		Format:           "time=${time_custom}, status=${status}, method=${method}, uri=${uri}\nerror:{${error}}\n",
 		CustomTimeFormat: "2006-01-02 15:04:05",
 	}))
-	e.Use(middleware.CORS())
+	//TODO: 暫且先用 "*" 方便測試。
+	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		AllowOrigins:     []string{"*"},
+		AllowCredentials: true,
+	}))
 	e.Logger.Fatal(e.Start(":1323"))
 }

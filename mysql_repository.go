@@ -157,8 +157,10 @@ func (m *Repository) GetUser(uuid string) (*User, error) {
 	}
 	defer rows.Close()
 	user := User{}
-	if err := rows.Scan(&user.Username); err != nil {
-		return nil, err
+	for rows.Next() {
+		if err := rows.Scan(&user.Username); err != nil {
+			return nil, err
+		}
 	}
 	return &user, nil
 }

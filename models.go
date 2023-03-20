@@ -10,10 +10,9 @@ import (
 )
 
 type User struct {
-	Id       int
-	Uuid     string
-	Username string
-	Password string
+	Uuid     string `json:"uuid"`
+	Username string `json:"username"`
+	Password string `json:"-"`
 }
 
 func (u *User) GenerateUuid() {
@@ -48,7 +47,6 @@ func (u *User) Validate() error {
 }
 
 type Car struct {
-	Id       int
 	Plate    string
 	Uuid     string
 	UserUuid string
@@ -75,7 +73,6 @@ func (c *Car) Validate() error {
 }
 
 type Appointment struct {
-	id        int
 	StartTime time.Time
 	EndTime   time.Time
 	Uuid      string
