@@ -47,9 +47,9 @@ func (u *User) Validate() error {
 }
 
 type Car struct {
-	Plate    string
-	Uuid     string
-	UserUuid string
+	Plate    string `json:"plate"`
+	Uuid     string `json:"uuid"`
+	UserUuid string `json:"user_uuid"`
 }
 
 func (c *Car) GenerateUuid() {
@@ -73,11 +73,11 @@ func (c *Car) Validate() error {
 }
 
 type Appointment struct {
-	StartTime time.Time
-	EndTime   time.Time
-	Uuid      string
-	UserUuid  string
-	CarUuid   string
+	StartTime time.Time `json:"start_time"`
+	EndTime   time.Time `json:"end_time"`
+	Uuid      string    `json:"uuid"`
+	UserUuid  string    `json:"user_uuid"`
+	CarUuid   string    `json:"car_uuid"`
 }
 
 func (a *Appointment) generateUuid() {

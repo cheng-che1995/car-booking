@@ -180,21 +180,6 @@ func login(c echo.Context) error {
 
 // }
 
-func createUser(c echo.Context) error {
-	token := c.Get("token").(*jwt.Token)
-	claims := token.Claims.(*jwtCustomClaims)
-	username := claims.Name
-	newUser := User{
-		Uuid:     "",
-		Username: username,
-		Password: c.FormValue("password"),
-	}
-	if err := mysqlRepo.CreateUser(&newUser); err != nil {
-		return c.JSON(http.StatusOK, err)
-	}
-	return c.JSON(http.StatusOK, fmt.Sprintf("使用者%s建立成功！", username))
-}
-
 // TODO: 新增驗證
 func deleteUser(c echo.Context) error {
 	newUser := User{
@@ -206,7 +191,6 @@ func deleteUser(c echo.Context) error {
 	return c.JSON(http.StatusOK, fmt.Sprintf("使用者刪除成功！"))
 }
 func getUser(c echo.Context) error {
-
 	uuid := c.Param("uuid")
 	user, err := mysqlRepo.GetUser(uuid)
 	if err != nil {
@@ -216,11 +200,11 @@ func getUser(c echo.Context) error {
 }
 
 func getUsers(c echo.Context) error {
-	g := GetUsersFilter{
-		Uuid:     c.FormValue("user_uuid"),
-		Username: c.FormValue("username"),
+	g := new(GetUsersFilter)
+	if err := c.Bind(g); err != nil {
+		return err
 	}
-	users, err := mysqlRepo.GetUsers(&g)
+	users, err := mysqlRepo.GetUsers(g)
 	if err != nil {
 		return err
 	}
@@ -228,27 +212,29 @@ func getUsers(c echo.Context) error {
 }
 
 func createCar(c echo.Context) error {
-	car := Car{
-		Plate:    c.FormValue("plate"),
-		UserUuid: c.FormValue("user_uuid"),
+	car := new(Car)
+	if err := c.Bind(car); err != nil {
+		return err
 	}
-	if err := mysqlRepo.CreateCar(&car); err != nil {
+	if err := mysqlRepo.CreateCar(car); err != nil {
 		return err
 	}
 	return c.JSON(http.StatusOK, fmt.Sprintf("車輛%s建立成功！", car.Plate))
 }
 
 func deleteCar(c echo.Context) error {
-	car := Car{
-		Uuid: c.FormValue("car_uuid")}
-	if err := mysqlRepo.DeleteCar(&car); err != nil {
+	car := new(Car)
+	if err := c.Bind(car); err != nil {
+		return err
+	}
+	if err := mysqlRepo.DeleteCar(car); err != nil {
 		return err
 	}
 	return c.JSON(http.StatusOK, fmt.Sprintf("車輛%s刪除成功！", car.Plate))
 }
 
 func getCar(c echo.Context) error {
-	uuid := c.FormValue("car_uuid")
+	uuid := c.Param("uuid")
 	car, err := mysqlRepo.GetCar(uuid)
 	if err != nil {
 		return err
@@ -257,12 +243,11 @@ func getCar(c echo.Context) error {
 }
 
 func getCars(c echo.Context) error {
-	g := GetCarsFilter{
-		Uuid:     c.FormValue("car_uuid"),
-		Plate:    c.FormValue("plate"),
-		UserUuid: c.FormValue("user_uuid"),
+	g := new(GetCarsFilter)
+	if err := c.Bind(g); err != nil {
+		return err
 	}
-	cars, err := mysqlRepo.GetCars(&g)
+	cars, err := mysqlRepo.GetCars(g)
 	if err != nil {
 		return err
 	}
@@ -421,13 +406,13 @@ func main() {
 	b.DELETE("/users/:uuid", deleteUser)
 	b.GET("/users/:uuid", getUser)
 	b.GET("/users", getUsers)
-	b.POST("/car", createCar)
-	b.DELETE("/car", deleteCar)
-	b.GET("/car", getCar)
+	b.POST("/cars", createCar)
+	b.DELETE("/cars/:uuid", deleteCar)
+	b.GET("/cars/:uuid", getCar)
 	b.GET("/cars", getCars)
-	b.POST("/appointment", createAppointment)
-	b.DELETE("/appointment", deleteAppointment)
-	b.GET("/appointment", getAppointment)
+	b.POST("/appointments", createAppointment)
+	b.DELETE("/appointments/:uuid", deleteAppointment)
+	b.GET("/appointments/:uuid", getAppointment)
 	b.GET("/appointments", getAppointments)
 	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
 		Format:           "time=${time_custom}, status=${status}, method=${method}, uri=${uri}\nerror:{${error}}\n",
