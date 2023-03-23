@@ -16,12 +16,16 @@ type CreateUserResponse struct {
 }
 
 func createUser(c echo.Context) error {
-	newUser := User{}
-	if err := c.Bind(&newUser); err != nil {
+	request := CreateUserRequest{}
+	if err := c.Bind(&request); err != nil {
 		return err
 	}
+
+	//
+	newUser := User{Username: request.Username, Password: request.Password}
 	if err := mysqlRepo.CreateUser(&newUser); err != nil {
-		return c.JSON(http.StatusOK, err)
+		return err
 	}
-	return c.JSON(http.StatusOK, CreateUserResponse{newUser})
+
+	return c.JSON(http.StatusOK, CreateUserResponse{User: newUser})
 }

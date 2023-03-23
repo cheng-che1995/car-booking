@@ -392,7 +392,8 @@ func main() {
 	defer mysqlRepo.CloseConn()
 	e := echo.New()
 	e.POST("/login", login)
-	e.GET("/users", showUsers)
+	// e.GET("/users", showUsers)
+	e.POST("/users", createUser)
 	b := e.Group("/booking")
 	b.Use(middleware.JWTWithConfig(middleware.JWTConfig{
 		Claims:     &jwtCustomClaims{},
@@ -402,7 +403,6 @@ func main() {
 			return c.String(http.StatusUnauthorized, err.Error())
 		},
 	}))
-	b.POST("/users", createUser)
 	b.DELETE("/users/:uuid", deleteUser)
 	b.GET("/users/:uuid", getUser)
 	b.GET("/users", getUsers)
