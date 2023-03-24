@@ -15,18 +15,6 @@ type jwtCustomClaims struct {
 	jwt.StandardClaims
 }
 
-type LoginRequest struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-}
-
-type LoginResponse struct {
-	Token   string `json:"token"`
-	Status  string `json:"status"`
-	Message string `json:"message"`
-	User    User   `json:"user"`
-}
-
 type AppointmentsResponse struct {
 	Appointments []Appointment `json:"appointments"`
 	Status       string        `json:"status"`
@@ -63,50 +51,6 @@ func showUsers(c echo.Context) error {
 }
 
 // TODO: use mysql database.
-func login(c echo.Context) error {
-	r := LoginRequest{}
-	if err := c.Bind(&r); err != nil {
-		return err
-	}
-	// password := c.FormValue("password")
-	unauthorizedMessage := "密碼錯誤！"
-	successMessage := "驗證成功！"
-	pw, ok := users[r.Username]
-
-	if pw != r.Password || !ok {
-		return c.JSON(http.StatusUnauthorized, LoginResponse{Status: UnauthorizedResponse, Message: unauthorizedMessage})
-	}
-	var expireTime time.Time
-	expireTime = time.Now().Add(time.Hour * 72)
-	claims := &jwtCustomClaims{
-		r.Username,
-		jwt.StandardClaims{
-			ExpiresAt: expireTime.Unix(),
-		},
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-
-	t, err := token.SignedString([]byte("secret"))
-	if err != nil {
-		return err
-	}
-
-	resp := LoginResponse{
-		Token:   t,
-		Status:  SuccessResponse,
-		Message: successMessage,
-		User:    User{Username: r.Username, Uuid: "1234"}}
-	cookie := new(http.Cookie)
-	cookie.Name = "jwt_access"
-	cookie.Value = t
-	cookie.Expires = expireTime
-	// cookie.HttpOnly = true
-	// cookie.SameSite = http.SameSiteStrictMode
-	// cookie.Secure = true
-	c.SetCookie(cookie)
-	return c.JSON(http.StatusOK, resp)
-}
 
 // func createAppointments(c echo.Context) error {
 // 	token := c.Get("token").(*jwt.Token)

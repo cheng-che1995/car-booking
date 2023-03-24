@@ -113,6 +113,23 @@ func (m *Repository) CloseConn() error {
 	m.db.Close()
 	return nil
 }
+func (m *Repository) AuthUser(u *User) (bool, error) {
+	if err := u.Validate(); err != nil {
+		return false, err
+	}
+	pwd, err := u.HashPassword()
+	if err != nil {
+		return false, err
+	}
+	q := `SELECT uuid FROM users WHERE username = ? AND password = ?`
+	row := m.db.QueryRow(q, u.Username, pwd)
+	if err := row.Scan(&u.Uuid); err == sql.ErrNoRows {
+		return false, nil
+	} else if err != nil {
+		return false, err
+	}
+	return true, nil
+}
 
 func (m *Repository) CreateUser(u *User) error {
 	if err := u.Validate(); err != nil {

@@ -126,6 +126,7 @@ func (g *GetAppointmentsFilter) GenerateQuery(fields []string) (string, []interf
 
 // TODO: add authUser func.
 type CarBookingRepository interface {
+	AuthUser(*User) (bool, error)
 	CreateUser(*User) error
 	DeleteUser(*User) error
 	GetUser(uuid string) (User, error)
