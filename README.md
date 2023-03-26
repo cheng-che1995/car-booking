@@ -1,6 +1,6 @@
 # Car Booking System
-### 目標：
-實現簡易車用預約平台
+### 簡介：
+為了方便協調家人使用車輛的日期、時間而開發的小專案，提供參與者、車輛及車輛預約增刪查改的功能。
 
 ### 學習技術：
 * 採用[Echo](https://github.com/labstack/echo) web framework，導入JWT驗證方法

@@ -56,15 +56,13 @@ func (c *Car) GenerateUuid() {
 	c.Uuid = uuid.NewV4().String()
 }
 
+// TODO: 驗證車牌正確性
 func (c *Car) Validate() error {
 	if c == nil {
 		return nil
 	}
 	if c.Plate == "" {
 		return errors.New("車牌不得為空值！")
-	}
-	if c.Uuid == "" {
-		return errors.New("uuid不得為空值！")
 	}
 	if c.UserUuid == "" {
 		return errors.New("UserUuid不得為空值！")

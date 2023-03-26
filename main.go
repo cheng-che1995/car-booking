@@ -329,9 +329,10 @@ func main() {
 	e.POST("/users", createUser)
 	b := e.Group("/booking")
 	b.Use(middleware.JWTWithConfig(middleware.JWTConfig{
-		Claims:     &jwtCustomClaims{},
-		SigningKey: []byte("secret"),
-		ContextKey: "token",
+		Claims:      &jwtCustomClaims{},
+		SigningKey:  []byte("secret"),
+		ContextKey:  "token",
+		TokenLookup: "cookie:jwt_access",
 		ErrorHandlerWithContext: func(err error, c echo.Context) error {
 			return c.String(http.StatusUnauthorized, err.Error())
 		},
