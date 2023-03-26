@@ -22,13 +22,10 @@ func createUser(c echo.Context) error {
 	if err := c.Bind(&request); err != nil {
 		return err
 	}
-
-	//
 	newUser := User{Username: request.Username, Password: request.Password}
 	if err := mysqlRepo.CreateUser(&newUser); err != nil {
 		return err
 	}
-
 	return c.JSON(http.StatusOK, CreateUserResponse{User: newUser})
 }
 
@@ -83,4 +80,28 @@ func login(c echo.Context) error {
 	cookie.Secure = true
 	c.SetCookie(cookie)
 	return c.JSON(http.StatusOK, resp)
+}
+
+type CreateCarRequest struct {
+	Car
+}
+
+type CreateCarResponse struct {
+	Car Car `json:"car"`
+}
+
+func createCar(c echo.Context) error {
+	request := CreateCarRequest{}
+	if err := c.Bind(&request); err != nil {
+		return err
+	}
+	newCar := Car{
+		Plate:    request.Plate,
+		Uuid:     request.Uuid,
+		UserUuid: request.UserUuid}
+
+	if err := mysqlRepo.CreateCar(&newCar); err != nil {
+		return err
+	}
+	return c.JSON(http.StatusOK, CreateCarResponse{Car: newCar})
 }

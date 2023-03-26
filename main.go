@@ -155,17 +155,6 @@ func getUsers(c echo.Context) error {
 	return c.JSON(http.StatusOK, users)
 }
 
-func createCar(c echo.Context) error {
-	car := new(Car)
-	if err := c.Bind(car); err != nil {
-		return err
-	}
-	if err := mysqlRepo.CreateCar(car); err != nil {
-		return err
-	}
-	return c.JSON(http.StatusOK, fmt.Sprintf("車輛%s建立成功！", car.Plate))
-}
-
 func deleteCar(c echo.Context) error {
 	car := new(Car)
 	if err := c.Bind(car); err != nil {
