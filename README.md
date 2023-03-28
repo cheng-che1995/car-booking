@@ -10,7 +10,5 @@
 * 導入[MySQL資料庫](https://github.com/go-sql-driver/mysql) 實現簡易的CRUD
 
 ### TODO List
-* 使用者註冊功能
 * 實作CI/CD（Github Action
-* 實現前端架構
 

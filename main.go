@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/golang-jwt/jwt"
 	"github.com/labstack/echo/v4"
@@ -185,27 +184,6 @@ func getCars(c echo.Context) error {
 		return err
 	}
 	return c.JSON(http.StatusOK, cars)
-}
-
-func createAppointment(c echo.Context) error {
-	startTime, err := time.Parse("2006-01-02", c.FormValue("start_time"))
-	if err != nil {
-		return err
-	}
-	endTime, err := time.Parse("2006-01-02", c.FormValue("end_time"))
-	if err != nil {
-		return err
-	}
-	appointment := Appointment{
-		UserUuid:  c.FormValue("user_uuid"),
-		CarUuid:   c.FormValue("car_uuid"),
-		StartTime: startTime,
-		EndTime:   endTime,
-	}
-	if err := mysqlRepo.CreateAppointment(&appointment); err != nil {
-		return err
-	}
-	return c.JSON(http.StatusOK, fmt.Sprintf("預約建立成功！"))
 }
 
 func deleteAppointment(c echo.Context) error {

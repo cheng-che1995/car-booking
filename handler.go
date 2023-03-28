@@ -105,3 +105,29 @@ func createCar(c echo.Context) error {
 	}
 	return c.JSON(http.StatusOK, CreateCarResponse{Car: newCar})
 }
+
+type CreateAppointmentRequest struct {
+	Appointment
+}
+
+type CreateAppontmentRespone struct {
+	Appointment Appointment `json:"appointment"`
+}
+
+func createAppointment(c echo.Context) error {
+	request := CreateAppointmentRequest{}
+	if err := c.Bind(&request); err != nil {
+		return err
+	}
+	newAppointment := Appointment{
+		StartTime: request.StartTime,
+		EndTime:   request.EndTime,
+		Uuid:      request.Uuid,
+		UserUuid:  request.UserUuid,
+		CarUuid:   request.CarUuid,
+	}
+	if err := mysqlRepo.CreateAppointment(&newAppointment); err != nil {
+		return err
+	}
+	return c.JSON(http.StatusOK, CreateAppontmentRespone{Appointment: newAppointment})
+}
