@@ -40,9 +40,12 @@ type LoginResponse struct {
 	User    User   `json:"user"`
 }
 
+const (
+	unauthorizedMessage = "使用者名稱或密碼錯誤！"
+	successMessage      = "登入成功！"
+)
+
 func login(c echo.Context) error {
-	unauthorizedMessage := "使用者名稱或密碼錯誤！"
-	successMessage := "登入成功！"
 	r := LoginRequest{}
 	if err := c.Bind(&r); err != nil {
 		return err
@@ -130,4 +133,149 @@ func createAppointment(c echo.Context) error {
 		return err
 	}
 	return c.JSON(http.StatusOK, CreateAppontmentRespone{Appointment: newAppointment})
+}
+
+type GetUserRequest struct {
+	Uuid string `json:"uuid"`
+}
+
+type GetUserResponse struct {
+	User User `json:"user"`
+}
+
+func getUser(c echo.Context) error {
+	request := GetUserRequest{}
+	if err := c.Bind(&request); err != nil {
+		return err
+	}
+	user, err := mysqlRepo.GetUser(request.Uuid)
+	if err != nil {
+		return err
+	}
+	return c.JSON(http.StatusOK, GetUserResponse{User: *user})
+}
+
+type GetUsersRequest struct {
+	User
+}
+
+type GetUsersResponse struct {
+	Users []User `json:"users"`
+}
+
+func getUsers(c echo.Context) error {
+	request := GetUsersRequest{}
+	if err := c.Bind(&request); err != nil {
+		return err
+	}
+	g := GetUsersFilter{
+		Uuid:     request.Uuid,
+		Username: request.Username,
+	}
+	users, err := mysqlRepo.GetUsers(&g)
+	if err != nil {
+		return err
+	}
+	return c.JSON(http.StatusOK, GetUsersResponse{Users: users})
+}
+
+type GetCarRequest struct {
+	Uuid string `json:"uuid"`
+}
+
+type GetCarResponse struct {
+	Car Car `json:"car"`
+}
+
+func getCar(c echo.Context) error {
+	request := GetCarRequest{}
+	if err := c.Bind(&request); err != nil {
+		return nil
+	}
+	car, err := mysqlRepo.GetCar(request.Uuid)
+	if err != nil {
+		return err
+	}
+	return c.JSON(http.StatusOK, GetCarResponse{Car: *car})
+}
+
+type GetCarsRequest struct {
+	Car
+}
+
+type GetCarsResponse struct {
+	Cars []Car `json:"cars"`
+}
+
+func getCars(c echo.Context) error {
+	request := GetCarsRequest{}
+	if err := c.Bind(&request); err != nil {
+		return nil
+	}
+	g := GetCarsFilter{
+		Uuid:     request.Uuid,
+		Plate:    request.Plate,
+		UserUuid: request.UserUuid,
+	}
+	cars, err := mysqlRepo.GetCars(&g)
+	if err != nil {
+		return err
+	}
+	return c.JSON(http.StatusOK, GetCarsResponse{Cars: cars})
+}
+
+type GetAppointmentRequest struct {
+	Uuid string `json:"uuid"`
+}
+
+type GetAppointmentResponse struct {
+	Appointment Appointment `json:"appointment"`
+}
+
+func getAppointment(c echo.Context) error {
+	request := GetAppointmentRequest{}
+	if err := c.Bind(&request); err != nil {
+		return err
+	}
+	appointent, err := mysqlRepo.GetAppointment(request.Uuid)
+	if err != nil {
+		return err
+	}
+	return c.JSON(http.StatusOK, GetAppointmentResponse{Appointment: *appointent})
+}
+
+type GetAppointmentsRequest struct {
+	Fields []string `json:"fields"`
+	Appointment
+}
+
+type GetAppointmentsResponse struct {
+	Appointments []Appointment `json:"appointments`
+}
+
+func getAppointments(c echo.Context) error {
+	fieldsList := map[int]string{
+		1: "appointment_uuid",
+		2: "user_uuid",
+		3: "car_uuid",
+		4: "start_time",
+		5: "end_time",
+	}
+	fields := []string{"appointment_uuid", "user_uuid", "car_uuid", "start_time", "end_time"}
+	request := GetAppointmentsRequest{}
+	if err := c.Bind(&request); err != nil {
+		return err
+	}
+	g := GetAppointmentsFilter{
+		Uuid:      request.Uuid,
+		UserUuid:  request.UserUuid,
+		CarUuid:   request.CarUuid,
+		StartTime: request.StartTime.Format("2006-01-02"),
+		EndTime:   request.EndTime.Format("2006-01-02"),
+	}
+	appointments, err := mysqlRepo.GetAppointments(request.Fields, &g)
+	if err != nil {
+		return err
+	}
+	return c.JSON(http.StatusOK, appointments)
 }
