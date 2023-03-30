@@ -1,68 +1,13 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 
-	"github.com/golang-jwt/jwt"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
 
-type jwtCustomClaims struct {
-	Name string `json:"name"`
-	jwt.StandardClaims
-}
-
-type AppointmentsResponse struct {
-	Appointments []Appointment `json:"appointments"`
-	Status       string        `json:"status"`
-	Message      string        `json:"message"`
-}
-
-const (
-	SuccessResponse      string = "success"
-	ConflictResponse     string = "conflict"
-	NotFoundResponse     string = "notFound"
-	UnauthorizedResponse string = "unauthorized"
-)
-
-var mysqlRepo Repository
-
-// TODO: 新增驗證
-func deleteUser(c echo.Context) error {
-	newUser := User{
-		Uuid: c.Param("uuid"),
-	}
-	if err := mysqlRepo.DeleteUser(&newUser); err != nil {
-		return c.JSON(http.StatusOK, err)
-	}
-	return c.JSON(http.StatusOK, fmt.Sprintf("使用者刪除成功！"))
-}
-
-func deleteCar(c echo.Context) error {
-	car := new(Car)
-	if err := c.Bind(car); err != nil {
-		return err
-	}
-	if err := mysqlRepo.DeleteCar(car); err != nil {
-		return err
-	}
-	return c.JSON(http.StatusOK, fmt.Sprintf("車輛%s刪除成功！", car.Plate))
-}
-
-func deleteAppointment(c echo.Context) error {
-	appointment := Appointment{
-		Uuid: c.FormValue("appointment_uuid"),
-	}
-	if err := mysqlRepo.DeleteAppointment(&appointment); err != nil {
-		return err
-	}
-	return c.JSON(http.StatusOK, fmt.Sprintf("預約刪除成功！"))
-}
-
 func main() {
-
 	/* Bolt database
 	dbBolt, err := bolt.Open("car-booking.db", 0600, &bolt.Options{Timeout: 1 * time.Second})
 	if err != nil {

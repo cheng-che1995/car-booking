@@ -8,6 +8,26 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+type jwtCustomClaims struct {
+	Name string `json:"name"`
+	jwt.StandardClaims
+}
+
+type AppointmentsResponse struct {
+	Appointments []Appointment `json:"appointments"`
+	Status       string        `json:"status"`
+	Message      string        `json:"message"`
+}
+
+const (
+	SuccessResponse      string = "success"
+	ConflictResponse     string = "conflict"
+	NotFoundResponse     string = "notFound"
+	UnauthorizedResponse string = "unauthorized"
+)
+
+var mysqlRepo Repository
+
 type CreateUserRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
@@ -285,4 +305,78 @@ func getAppointments(c echo.Context) error {
 		return err
 	}
 	return c.JSON(http.StatusOK, appointments)
+}
+
+type DeleteUserRequest struct {
+	User
+}
+
+type DeleteUserResponse struct {
+	Message string `json:"message"`
+}
+
+// TODO: 新增驗證
+func deleteUser(c echo.Context) error {
+	request := DeleteUserRequest{}
+	if err := c.Bind(&request); err != nil {
+		return err
+	}
+	user := User{
+		Uuid:     request.Uuid,
+		Username: request.Username,
+	}
+	if err := mysqlRepo.DeleteUser(&user); err != nil {
+		return c.JSON(http.StatusNotFound, DeleteUserResponse{Message: "查無此使用者，刪除失敗！"})
+	}
+	return c.JSON(http.StatusOK, DeleteUserResponse{Message: "使用者刪除成功！"})
+}
+
+type DeleteCarRequest struct {
+	Car
+}
+
+type DeleteCarResponse struct {
+	message string `json:"message"`
+}
+
+func deleteCar(c echo.Context) error {
+	request := DeleteCarRequest{}
+	if err := c.Bind(&request); err != nil {
+		return err
+	}
+	car := Car{
+		Uuid:     request.Uuid,
+		Plate:    request.Plate,
+		UserUuid: request.UserUuid,
+	}
+	if err := mysqlRepo.DeleteCar(&car); err != nil {
+		return c.JSON(http.StatusNotFound, DeleteCarResponse{message: "查無此車輛，刪除失敗！"})
+	}
+	return c.JSON(http.StatusOK, DeleteCarResponse{message: "車輛刪除成功！"})
+}
+
+type DeleteAppointmentRequest struct {
+	Appointment
+}
+
+type DeleteAppointmentResponse struct {
+	message string `json:"message"`
+}
+
+func deleteAppointment(c echo.Context) error {
+	request := DeleteAppointmentRequest{}
+	if err := c.Bind(&request); err != nil {
+		return err
+	}
+	appointment := Appointment{
+		StartTime: request.StartTime,
+		EndTime:   request.EndTime,
+		Uuid:      request.Uuid,
+		UserUuid:  request.UserUuid,
+		CarUuid:   request.CarUuid,
+	}
+	if err := mysqlRepo.DeleteAppointment(&appointment); err != nil {
+		return c.JSON(http.StatusNotFound, DeleteAppointmentResponse{message: "查無此預約，刪除失敗！"})
+	}
+	return c.JSON(http.StatusOK, DeleteAppointmentResponse{message: "預約刪除成功！"})
 }
