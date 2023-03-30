@@ -245,7 +245,7 @@ func getAppointment(c echo.Context) error {
 }
 
 type GetAppointmentsRequest struct {
-	Fields []string `json:"fields"`
+	Fields []int `json:"fields"`
 	Appointment
 }
 
@@ -254,6 +254,10 @@ type GetAppointmentsResponse struct {
 }
 
 func getAppointments(c echo.Context) error {
+	request := GetAppointmentsRequest{}
+	if err := c.Bind(&request); err != nil {
+		return err
+	}
 	fieldsList := map[int]string{
 		1: "appointment_uuid",
 		2: "user_uuid",
@@ -261,10 +265,13 @@ func getAppointments(c echo.Context) error {
 		4: "start_time",
 		5: "end_time",
 	}
-	fields := []string{"appointment_uuid", "user_uuid", "car_uuid", "start_time", "end_time"}
-	request := GetAppointmentsRequest{}
-	if err := c.Bind(&request); err != nil {
-		return err
+	fields := []string{}
+	for _, v := range request.Fields {
+		for i, j := range fieldsList {
+			if v == i {
+				fields = append(fields, j)
+			}
+		}
 	}
 	g := GetAppointmentsFilter{
 		Uuid:      request.Uuid,
@@ -273,7 +280,7 @@ func getAppointments(c echo.Context) error {
 		StartTime: request.StartTime.Format("2006-01-02"),
 		EndTime:   request.EndTime.Format("2006-01-02"),
 	}
-	appointments, err := mysqlRepo.GetAppointments(request.Fields, &g)
+	appointments, err := mysqlRepo.GetAppointments(fields, &g)
 	if err != nil {
 		return err
 	}
