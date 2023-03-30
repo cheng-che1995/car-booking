@@ -4,7 +4,9 @@ import (
 	"crypto/sha256"
 	"encoding"
 	"errors"
+	"fmt"
 	"time"
+	"unicode"
 
 	uuid "github.com/satori/go.uuid"
 )
@@ -17,6 +19,45 @@ type User struct {
 
 func (u *User) GenerateUuid() {
 	u.Uuid = uuid.NewV4().String()
+}
+
+func (u User) CheckPassword() (bool, error) {
+	const (
+		minLenth = 10
+		maxLenth = 25
+	)
+	var (
+		ErrTooShort = errors.New(fmt.Sprintf("密碼長度不足，請大於%s字元!", minLenth))
+		ErrTooLong  = errors.New(fmt.Sprintf("密碼長度過長，請小於%s字元！", maxLenth))
+		hasSpecial  = false
+		hasUpper    = false
+		hasLower    = false
+		hasDigit    = false
+	)
+	if len(u.Password) < minLenth {
+		return false, ErrTooShort
+	}
+	if len(u.Password) > maxLenth {
+		return false, ErrTooLong
+	}
+	for _, v := range u.Password {
+		if unicode.IsSymbol(v) {
+			hasSpecial = true
+		}
+		if unicode.IsUpper(v) {
+			hasUpper = true
+		}
+		if unicode.IsLower(v) {
+			hasLower = true
+		}
+		if unicode.IsNumber(v) {
+			hasDigit = true
+		}
+		if hasSpecial && hasUpper && hasLower && hasDigit {
+			break
+		}
+	}
+	return true, nil
 }
 
 func (u User) HashPassword() ([]byte, error) {

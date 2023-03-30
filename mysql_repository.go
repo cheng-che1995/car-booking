@@ -135,11 +135,12 @@ func (m *Repository) CreateUser(u *User) error {
 	if err := u.Validate(); err != nil {
 		return err
 	}
-
+	if ok, err := u.CheckPassword(); !ok {
+		return err
+	}
 	if u.Uuid == "" {
 		u.GenerateUuid()
 	}
-
 	pwd, err := u.HashPassword()
 	if err != nil {
 		return err
