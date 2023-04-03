@@ -48,7 +48,7 @@ type GetCarsFilter struct {
 }
 
 func (g *GetCarsFilter) GenerateQuery() (string, []interface{}) {
-	query := "SELECT plate, user_uuid FROM cars"
+	query := "SELECT uuid, plate, user_uuid FROM cars"
 	var conditions []string
 	var whereValues []interface{}
 	if g.Id != 0 {

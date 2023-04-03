@@ -257,7 +257,7 @@ func (m *Repository) GetCars(g *GetCarsFilter) ([]Car, error) {
 	defer rows.Close()
 	for rows.Next() {
 		car := Car{}
-		if err := rows.Scan(&car.Plate, &car.UserUuid); err != nil {
+		if err := rows.Scan(&car.Uuid, &car.Plate, &car.UserUuid); err != nil {
 			return nil, err
 		}
 		cars = append(cars, car)

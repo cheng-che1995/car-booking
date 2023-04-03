@@ -270,7 +270,7 @@ type GetAppointmentsRequest struct {
 }
 
 type GetAppointmentsResponse struct {
-	Appointments []Appointment `json:"appointments`
+	Appointments []Appointment `json:"appointments"`
 }
 
 func getAppointments(c echo.Context) error {
@@ -336,7 +336,7 @@ type DeleteCarRequest struct {
 }
 
 type DeleteCarResponse struct {
-	message string `json:"message"`
+	Message string `json:"message"`
 }
 
 func deleteCar(c echo.Context) error {
@@ -350,9 +350,9 @@ func deleteCar(c echo.Context) error {
 		UserUuid: request.UserUuid,
 	}
 	if err := mysqlRepo.DeleteCar(&car); err != nil {
-		return c.JSON(http.StatusNotFound, DeleteCarResponse{message: "查無此車輛，刪除失敗！"})
+		return c.JSON(http.StatusNotFound, DeleteCarResponse{Message: "查無此車輛，刪除失敗！"})
 	}
-	return c.JSON(http.StatusOK, DeleteCarResponse{message: "車輛刪除成功！"})
+	return c.JSON(http.StatusOK, DeleteCarResponse{Message: "車輛刪除成功！"})
 }
 
 type DeleteAppointmentRequest struct {
@@ -360,7 +360,7 @@ type DeleteAppointmentRequest struct {
 }
 
 type DeleteAppointmentResponse struct {
-	message string `json:"message"`
+	Message string `json:"message"`
 }
 
 func deleteAppointment(c echo.Context) error {
@@ -376,7 +376,7 @@ func deleteAppointment(c echo.Context) error {
 		CarUuid:   request.CarUuid,
 	}
 	if err := mysqlRepo.DeleteAppointment(&appointment); err != nil {
-		return c.JSON(http.StatusNotFound, DeleteAppointmentResponse{message: "查無此預約，刪除失敗！"})
+		return c.JSON(http.StatusNotFound, DeleteAppointmentResponse{Message: "查無此預約，刪除失敗！"})
 	}
-	return c.JSON(http.StatusOK, DeleteAppointmentResponse{message: "預約刪除成功！"})
+	return c.JSON(http.StatusOK, DeleteAppointmentResponse{Message: "預約刪除成功！"})
 }

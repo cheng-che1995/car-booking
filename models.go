@@ -27,8 +27,8 @@ func (u User) CheckPassword() (bool, error) {
 		maxLenth = 25
 	)
 	var (
-		ErrTooShort = errors.New(fmt.Sprintf("密碼長度不足，請大於%s字元!", minLenth))
-		ErrTooLong  = errors.New(fmt.Sprintf("密碼長度過長，請小於%s字元！", maxLenth))
+		ErrTooShort = errors.New(fmt.Sprintf("密碼長度不足，請大於%d字元!", minLenth))
+		ErrTooLong  = errors.New(fmt.Sprintf("密碼長度過長，請小於%d字元！", maxLenth))
 		hasSpecial  = false
 		hasUpper    = false
 		hasLower    = false
