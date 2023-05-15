@@ -1,0 +1,55 @@
+openapi: 3.1.0
+info:
+  title: Car Booking
+  version: 0.0.1
+  description: This is a reservation server for shared vehicles.
+paths:
+  /users:
+    post:
+      description: Create a new user.
+      responses: 
+        200:
+          description: success.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - user
+                properties:
+                  user:
+                    type: object
+                    required:
+                      - uuid
+                      - username
+                    properties:
+                      uuid:
+                        type: string
+                        minLength: 1
+                      username:
+                        type: string
+                        minLength: 1
+    get:
+      description: Get a new user.
+      responses: 
+        200:
+          description: success.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - user
+                properties:
+                  user:
+                    type: object
+                    required:
+                      - uuid
+                      - username
+                    properties:
+                      uuid:
+                        type: string
+                        minLength: 1
+                      username:
+                        type: string
+                        minLength: 1
