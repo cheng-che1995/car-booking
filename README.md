@@ -19,21 +19,35 @@
 * 導入[MySQL資料庫](https://github.com/go-sql-driver/mysql) 實現較複雜的數據操作，例如 CRUD（新增、讀取、更新、刪除）等。
 
 ## 如何開始：
-:::warning
-此專案使用環境為Golang v1.19 及 MySQL v8.0，若尚未安裝可參考[Golang官方網站](https://go.dev/doc/install)、[MySQL官方網站](https://dev.mysql.com/downloads/installer/)進行安裝。
-:::
+### 環境要求
+* Golang v1.19
+* MySQL v8.0.31
 
-1. 在終端機中下載此專案至本地端：
-`git clone https://github.com/diverwil1995/car-booking.git`
+如果尚未安裝上述環境，請參考以下官方網站進行安裝：
+* [Golang官方網站](https://go.dev/doc/install)
+* [MySQL官方網站](https://dev.mysql.com/downloads/installer/)進行安裝。
 
-2. 在終端機中使用MYSQL命令列手動建立名為"testdb"(或自行定義)的Database，命令如下：
-`create database testdb;`
-:::info
-自行定義須另外將mysql_repository.go中的第20行環境變數同時更改。
-:::
-3. 執行以下命令，將應用程式運行"localhost:1323"上：
-`go run .`
 
+
+* 下載專案
+在終端機中下載此專案至本地端：
+```shell
+git clone https://github.com/diverwil1995/car-booking.git
+```
+* 建立資料庫
+在終端機中使用MYSQL命令列手動建立名為"testdb"的Database，命令如下：
+
+```mysql
+create database testdb;
+```
+> "請自行修改"testdb"為所需的資料庫名稱，並同時更新mysql_repository.go檔案中的環境變數。"
+
+* 運行程式
+執行以下命令，將應用程式運行"localhost:1323"上：
+
+```golang
+go run .
+```
 > 若需要查看更詳細的 API 文件，請點擊[這裡](https://)。該文件包含所有可用的 API 端點、請求和回應的範例，以及相關的參數和資源說明。請參考該文件以便深入了解並開始使用專案的 API 功能。
 
 
