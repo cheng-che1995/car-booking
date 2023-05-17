@@ -48,7 +48,7 @@ create database testdb;
 go run .
 ```
 ### API 文件
-若需要查看更詳細的 API 文件，請點擊[這裡](https://)。該文件包含所有可用的 API 端點、請求和回應的範例，以及相關的參數和資源說明。請參考該文件以便深入了解並開始使用專案的 API 功能。
+若需要查看更詳細的 API 文件，請點擊[這裡](https://github.com/diverwil1995/car-booking/blob/main/docs/openapi.yaml)。該文件包含所有可用的 API 端點、請求和回應的範例，以及相關的參數和資源說明。請參考該文件以便深入了解並開始使用專案的 API 功能。
 
 
 ## 貢獻者名單：

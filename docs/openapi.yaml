@@ -21,7 +21,7 @@ paths:
       security:
         - jwt_auth: []
       description: > 
-        This operation allows creating a new user in system.
+        This operation allows creating a new user in the system.
         It requires the user's name and password as input.
         If the operation is successful, it will return the user structure, including the UUID.
       requestBody:
@@ -46,7 +46,7 @@ paths:
       summary: Search user by UUID.
       operationId: getUser
       description: >
-        This operation allows search a user by UUID in system.
+        This operation allows searching for a user by UUID in the system.
         It requires the user's UUID as input.
         If the operation is successful, it will return the user structure.
       security: 
@@ -68,7 +68,28 @@ paths:
           description: Bad request.
         '404':
           description: User not found.
-       
+    delete:
+      summary: Delete user By UUID.
+      operationId: deleteUser
+      security: 
+        -  jwt_auth: []
+      description: >
+        This operation allows deleting a user By UUID from the system.
+        It requires the user's UUID as input.
+        If the operation is successful, it will return a success message.
+      parameters: 
+        - in: query
+          name: uuid
+          required: true
+          schema: 
+            type: string
+      responses: 
+        '200':
+          description: User deleted Successfully.
+        '400':
+          description: Bad request.
+        '404':
+          description: User not found.
 
 components: 
   schemas:
