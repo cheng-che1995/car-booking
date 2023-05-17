@@ -90,7 +90,32 @@ paths:
           description: Bad request.
         '404':
           description: User not found.
+  "/login":
+    post: 
+      summary: User Login.
+      operationId: login
+      security: 
+        -  jwt_auth: []
+      description: >
+        This operation allows visitors to log into the system.
+        It requires the user strcuture as input.
+        If the operation is successful, it will return a success message.
+      requestBody: 
+        required: true
+        content: 
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses: 
+        '200':
+          description: Login successful.
+        '400':
+          description: Bad request.
+        '404':
+          description: Invalid.
 
+
+        
 components: 
   schemas:
     UserRequest:
