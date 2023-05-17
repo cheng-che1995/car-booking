@@ -3,53 +3,31 @@ info:
   title: Car Booking
   version: 0.0.1
   description: This is a reservation server for shared vehicles.
+  contact:  
+    name: diverwil1995
+    url: https://github.com/diverwil1995/car-booking
+    email: diverwil1995@gmail.com
+  license: 
+    name: All rights reserved
+    url: "#"
+servers: 
+  - url: http://localhost:1323
+
 paths:
-  /users:
+  "/users":
     post:
-      description: Create a new user.
-      responses: 
-        200:
-          description: success.
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - user
-                properties:
-                  user:
-                    type: object
-                    required:
-                      - uuid
-                      - username
-                    properties:
-                      uuid:
-                        type: string
-                        minLength: 1
-                      username:
-                        type: string
-                        minLength: 1
-    get:
-      description: Get a new user.
-      responses: 
-        200:
-          description: success.
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - user
-                properties:
-                  user:
-                    type: object
-                    required:
-                      - uuid
-                      - username
-                    properties:
-                      uuid:
-                        type: string
-                        minLength: 1
-                      username:
-                        type: string
-                        minLength: 1
+      summary: Register a new user.
+      operationId: createUser
+      security:
+        - jwt_auth: []
+      description: > 
+        This operation allows creating a new user in system.
+        It requires the user's name and password as input.
+        If the operation is successful, it will return the user structure, including the UUID.
+      
+components: 
+  securitySchemes: 
+    jwt_auth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
