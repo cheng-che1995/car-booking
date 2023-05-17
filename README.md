@@ -39,7 +39,7 @@ git clone https://github.com/diverwil1995/car-booking.git
 ```mysql
 create database testdb;
 ```
-> "請自行修改"testdb"為所需的資料庫名稱，並同時更新mysql_repository.go檔案中的環境變數。"
+> 請自行修改"testdb"為所需的資料庫名稱，並同時更新mysql_repository.go檔案中的環境變數。
 
 ### 運行程式
 執行以下命令，將應用程式運行"localhost:1323"上：
