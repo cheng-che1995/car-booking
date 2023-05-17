@@ -24,8 +24,48 @@ paths:
         This operation allows creating a new user in system.
         It requires the user's name and password as input.
         If the operation is successful, it will return the user structure, including the UUID.
-      
+      requestBody:
+        required: true
+        content: 
+          application/json:
+            schema: 
+              $ref: '#/components/schemas/UserRequest'
+      responses:
+        '200':
+          description: User creation successful.
+          content: 
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Bad request.        
+        '409':
+          description: User already exists. Creation failed.
+
+        
+
 components: 
+  schemas:
+    UserRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties: 
+        username:
+          type: string
+        password:
+          type: string
+    User:
+      type: object
+      properties: 
+        uuid:
+          type: string
+        username:
+          type: string
+        password:
+          type: string
+
   securitySchemes: 
     jwt_auth:
       type: http
