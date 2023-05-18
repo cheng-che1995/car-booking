@@ -65,14 +65,14 @@ paths:
         '409':
           description: User already exists.
   "/booking/users":
-    post: 
+    get: 
       summary: Search users by filter
       operationId: getUsers
       security: 
         -  jwt_auth: []
       description: >
-        This operation allows searching for collection of users based on user's structure in the system.
-        It requires the user's structure as input.
+        This operation allows searching for a group of users based on user structure in the system.
+        It requires the user structure as input.
         If the operation is successful, it will return an array of users.
       requestBody: 
         content: 
@@ -145,7 +145,7 @@ paths:
           description: User not found.
   "/booking/cars":
     post: 
-      summary: Create a new car.
+      summary: Create a new car
       operationId: createCar
       security: 
         -  jwt_auth: []
@@ -163,9 +163,84 @@ paths:
           description: Car creation successful.
         '409':
           description: Car already exists.
-               
+    get: 
+      summary: Search cars by filter
+      operationId: getCars
+      security: 
+        -  jwt_auth: []
+      description: >
+          This operation allows searching for a group of cars based on car structure in the system.
+          It requires a car structure as input.
+          If the operation is successful, it will return an array of cars.
+      requestBody: 
+        content: 
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Car"
+      responses: 
+        '200':
+          description: Cars search successful.
+          content:
+            application/json:
+              schema: 
+                type: array
+                items: 
+                  $ref: '#/components/schemas/Car'
+        '400':
+          description: Bad request.
+        '404':
+          description: Cars not found.  
+  "/booking/cars/{uuid}":
+    get:
+      summary: Search car by UUID
+      operationId: getCar
+      security: 
+        -  jwt_auth: []
+      description: >
+        This operation allows searching for a car by its UUID in the system.
+        It requires a car's UUID as input.
+        If the operation is successful, it will return a car structure. 
+      parameters: 
+        - in: path
+          name: uuid
+          required: true
+          schema: 
+            type: string
+      responses: 
+        '200':
+          description: Car search successful.
+          content:
+            application/json:
+              schema: 
+                $ref: "#/components/schemas/Car" 
+        '400':
+          description: Bad request.
+        '409':
+          description: Car not found.          
+    delete: 
+      summary: Delete car by UUID
+      operationId: deleteCar
+      security: 
+        -  jwt_auth: []
+      description: >
+        This operation allows delete car by its UUID in the system.
+        It requires a car's UUID as input.
+        If the operation is successful, it will return a success message.
+      parameters: 
+        - in: path
+          name: uuid
+          required: true
+          schema: 
+            type: string
+      responses: 
+        '200':
+          description: Car delete successful.
+        '400':
+          description: Bad request.
+        '404':
+          description: Car not found.       
 
-        
+              
 components: 
   schemas:
     UserRequest:
