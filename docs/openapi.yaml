@@ -14,9 +14,32 @@ servers:
   - url: http://localhost:1323
 
 paths:
+  "/login":
+    post: 
+      summary: Visitor login
+      operationId: login
+      security: 
+        -  jwt_auth: []
+      description: >
+        This operation allows visitors to log into the system.
+        It requires the user strcuture as input.
+        If the operation is successful, it will return a success message.
+      requestBody: 
+        required: true
+        content: 
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses: 
+        '200':
+          description: Login successful.
+        '400':
+          description: Bad request.
+        '404':
+          description: Invalid.
   "/users":
     post:
-      summary: Register a new user.
+      summary: Register a new user
       operationId: createUser
       security:
         - jwt_auth: []
@@ -38,12 +61,42 @@ paths:
               schema: 
                 $ref: '#/components/schemas/User'
         '400':
-          description: Bad request.        
+          description: Bad request.      
         '409':
-          description: User already exists. Creation failed.
-  
+          description: User already exists.
+  "/booking/users":
+    post: 
+      summary: Search users by filter
+      operationId: getUsers
+      security: 
+        -  jwt_auth: []
+      description: >
+        This operation allows searching for collection of users based on user's structure in the system.
+        It requires the user's structure as input.
+        If the operation is successful, it will return an array of users.
+      requestBody: 
+        content: 
+          application/json:
+            schema:
+              type: object
+              $ref: '#/components/schemas/User'
+      responses:
+        '200':
+          description: Users search successful.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: 
+                  $ref: "#/components/schemas/User"
+        '400':
+          description: Bad request.
+        '404':
+          description: User not found.
+        
+  "/booking/users/{uuid}":
     get:
-      summary: Search user by UUID.
+      summary: Search user by UUID
       operationId: getUser
       description: >
         This operation allows searching for a user by UUID in the system.
@@ -52,7 +105,7 @@ paths:
       security: 
         - jwt_auth: []
       parameters: 
-        - in: query
+        - in: path
           name: uuid
           required: true
           schema: 
@@ -69,7 +122,7 @@ paths:
         '404':
           description: User not found.
     delete:
-      summary: Delete user By UUID.
+      summary: Delete user By UUID
       operationId: deleteUser
       security: 
         -  jwt_auth: []
@@ -78,7 +131,7 @@ paths:
         It requires the user's UUID as input.
         If the operation is successful, it will return a success message.
       parameters: 
-        - in: query
+        - in: path
           name: uuid
           required: true
           schema: 
@@ -90,30 +143,27 @@ paths:
           description: Bad request.
         '404':
           description: User not found.
-  "/login":
+  "/booking/cars":
     post: 
-      summary: User Login.
-      operationId: login
+      summary: Create a new car.
+      operationId: createCar
       security: 
         -  jwt_auth: []
       description: >
-        This operation allows visitors to log into the system.
-        It requires the user strcuture as input.
+        This operation allows create a new car info into the system.
+        It requires the car structure as input.
         If the operation is successful, it will return a success message.
       requestBody: 
-        required: true
         content: 
-          application/json:
+          application.json:
             schema:
-              $ref: '#/components/schemas/User'
-      responses: 
+              $ref: '#/components/schemas/Car'
+      responses:
         '200':
-          description: Login successful.
-        '400':
-          description: Bad request.
-        '404':
-          description: Invalid.
-
+          description: Car creation successful.
+        '409':
+          description: Car already exists.
+               
 
         
 components: 
@@ -137,7 +187,15 @@ components:
           type: string
         password:
           type: string
-
+    Car:
+      type: object
+      properties:
+        uuid:
+          type: string
+        user_uuid:
+          type: string
+        plate:
+          type: string
   securitySchemes: 
     jwt_auth:
       type: http
