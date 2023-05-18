@@ -71,7 +71,7 @@ paths:
       security: 
         -  jwt_auth: []
       description: >
-        This operation allows searching for a group of users based on user structure in the system.
+        This operation allows searching for a group of users in the system.
         It requires the user structure as input.
         If the operation is successful, it will return an array of users.
       requestBody: 
@@ -169,7 +169,7 @@ paths:
       security: 
         -  jwt_auth: []
       description: >
-          This operation allows searching for a group of cars based on car structure in the system.
+          This operation allows searching for a group of cars in the system.
           It requires a car structure as input.
           If the operation is successful, it will return an array of cars.
       requestBody: 
@@ -239,7 +239,106 @@ paths:
           description: Bad request.
         '404':
           description: Car not found.       
-
+  "/booking/appointments":
+    post: 
+      summary: Create a new appointment
+      operationId: createAppointment
+      security: 
+        -  jwt_auth: []
+      description: >
+        This operation allows creating a new appointment in the system.
+        It requires an appointment structure as input.
+        If the operation is successful, it will return a success message.
+      requestBody: 
+        content: 
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Appointment"
+      responses: 
+        '200':
+          description: Appointment create successful.
+        '400':
+          description: Bad request.
+        '409':
+          description: Appointment already exists.
+          
+    get:
+      summary: Search appointments by filter
+      operationId: getAppointments
+      security: 
+        -  jwt_auth: []
+      description: >
+        This operation allows searching for a group of appointment in the system.
+        It requires an appointment structure as input.
+        If the operation is successful, it will return an array of appointments.
+      requestBody: 
+        content: 
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Appointment'
+      responses: 
+        '200':
+          description: Appointment search successful.
+          content: 
+            application/json:
+              schema: 
+                type: array
+                items: 
+                  $ref: '#/components/schemas/Appointment'
+        '400':
+          description: Bad request.         
+        '404':
+          description: Appointment not found.
+        
+  "/booking/appointments/{uuid}":
+    get: 
+      summary: Search appointment by UUID
+      operationId: getAppointment
+      security: 
+        -  jwt_auth: []
+      description: >
+        This operation allows searching for an appointment in the system.
+        It requires an appointment's UUID as input.
+        If the operation is successful, it will return an appointment.
+      parameters: 
+        - in: path
+          name: uuid
+          required: true
+          schema: 
+            type: string
+      responses: 
+        '200':
+          description: Appointment search successful.
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/Appointment'
+        '400':
+          description: Bad request.
+        '404':
+          description: Appointment not found.      
+    delete:
+      summary: Delete appointment by UUID
+      operationId: deleteAppointment
+      security: 
+        -  jwt_auth: []
+      description: >
+        This operation allows delete appointment in the system.
+        It requires an appointment structure as input.
+        If the operation is successful, it will return a success message.
+      parameters: 
+        - in: path
+          name: uuid
+          required: true 
+          schema: 
+            type: string
+      responses: 
+        '200':
+          description: Appointment detele succesful.
+        '400':
+          description: Bad request.
+        '404':
+          description: Appointment not found.  
               
 components: 
   schemas:
@@ -271,6 +370,22 @@ components:
           type: string
         plate:
           type: string
+    Appointment:
+      type: object
+      properties: 
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        uuid:
+          type: string
+        user_uuid:
+          type: string
+        car_uuid:
+          type: string
+
   securitySchemes: 
     jwt_auth:
       type: http
