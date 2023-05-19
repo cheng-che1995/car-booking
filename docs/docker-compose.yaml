@@ -1,0 +1,9 @@
+version: '3'
+services:
+  redoc:
+    image: redocly/redoc:v2.0.0
+    ports:
+     - 8080:80
+    volumes:
+      - ./openapi.yaml:/usr/share/nginx/html/openapi.yaml
+    command: serve /usr/share/nginx/html/openapi.yaml
