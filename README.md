@@ -17,6 +17,7 @@
 * 使用[Hoppscotch](https://docs.hoppscotch.io/)執行API測試，確保 API 的正確性和可靠性。
 * ***尚未更新*** ~~使用Golang原生數據庫[BoltDB](https://github.com/boltdb/bolt) 實現輕量級的鍵值儲存，確保高效且可靠的數據操作。~~
 * 導入[MySQL資料庫](https://github.com/go-sql-driver/mysql) 提升數據操作的靈活性，實現更複雜的查詢、多表關聯及事務處理等需求。
+* 使用OpenAPI規範定義API文件，提升文檔展示的擴充性、便利性。
 
 ## 如何開始：
 ### 環境要求
@@ -49,6 +50,16 @@ go run .
 ```
 ### API 文件
 若需要查看更詳細的 API 文件，請點擊[這裡](https://github.com/diverwil1995/car-booking/blob/main/docs/openapi.yaml)。該文件包含所有可用的 API 端點、請求和回應的範例，以及相關的參數和資源說明。請參考該文件以便深入了解並開始使用專案的 API 功能。
+
+### 透過Redoc查看API文件
+> 請先確保docker、docker-compose服務正常運行，以及"localhost:8080"無被使用！
+
+在終端機切換至"/docs"目錄下，執行此命令：
+```shell
+docker-compose up
+```
+接著開啟瀏覽器打開[http://localhost:8080](http://localhost:8080)即可。
+
 
 
 ## 貢獻者名單：
