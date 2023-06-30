@@ -6,11 +6,7 @@ require (
 	github.com/boltdb/bolt v1.3.1
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/labstack/echo/v4 v4.9.0
-)
-
-require (
-	github.com/google/uuid v1.3.0 // indirect
-	github.com/satori/go.uuid v1.2.0 // indirect
+	github.com/satori/go.uuid v1.2.0
 )
 
 require (
