@@ -15,7 +15,7 @@
 * 採用[Echo](https://github.com/labstack/echo) 網頁框架，並導入 JWT 驗證方法，提供安全的 API 服務。
 * 使用基於HTTP方法的RESTful API實作，提供標準的API介面。
 * 使用[Hoppscotch](https://docs.hoppscotch.io/)執行API測試，確保 API 的正確性和可靠性。
-* ***尚未更新*** ~~使用Golang原生數據庫[BoltDB](https://github.com/boltdb/bolt) 實現輕量級的鍵值儲存，確保高效且可靠的數據操作。~~
+* ***已棄用*** ~~使用Golang原生數據庫[BoltDB](https://github.com/boltdb/bolt) 實現輕量級的鍵值儲存，確保高效且可靠的數據操作。~~
 * 導入[MySQL資料庫](https://github.com/go-sql-driver/mysql) 提升數據操作的靈活性，實現更複雜的查詢、多表關聯及事務處理等需求。
 * 使用OpenAPI規範定義API文件，提升文檔展示的擴充性、便利性。
 
